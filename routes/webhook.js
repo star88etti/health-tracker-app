@@ -1,32 +1,199 @@
+// Webhook route handlers
 const express = require('express');
 const router = express.Router();
-const { analyzeHealthData } = require('../services/openaiService');
-const { appendHealthData } = require('../services/sheetsService');
-const { sendHealthUpdate } = require('../services/twilioService');
+const openaiService = require('../services/openaiService');
+const sheetsService = require('../services/sheetsService');
+const twilioService = require('../services/twilioService');
 
-router.post('/health-data', async (req, res) => {
-    try {
-        const healthData = req.body;
-        
-        // Store data in Google Sheets
-        await appendHealthData(process.env.GOOGLE_SHEETS_ID, [
-            new Date().toISOString(),
-            JSON.stringify(healthData)
-        ]);
-
-        // Analyze data with OpenAI
-        const analysis = await analyzeHealthData(healthData);
-
-        // Send update via Twilio if phone number is provided
-        if (healthData.phoneNumber) {
-            await sendHealthUpdate(healthData.phoneNumber, analysis);
-        }
-
-        res.json({ success: true, analysis });
-    } catch (error) {
-        console.error('Error processing health data:', error);
-        res.status(500).json({ success: false, error: error.message });
+/**
+ * Webhook endpoint for handling incoming messages
+ */
+router.post('/message', async (req, res) => {
+  try {
+    // For production, uncomment this to validate Twilio requests
+    // if (!twilioService.validateRequest(req)) {
+    //   return res.status(403).send('Forbidden');
+    // }
+    
+    // Extract message info from the request
+    const messageBody = req.body.Body || '';
+    const from = req.body.From || '';
+    
+    // Extract user ID (phone number) from the "from" field
+    // Twilio WhatsApp format: "whatsapp:+1234567890"
+    const userId = from.replace('whatsapp:', '');
+    
+    console.log(`Received message from ${userId}: ${messageBody}`);
+    
+    // Ensure user exists in our database
+    const user = await sheetsService.ensureUserExists(userId);
+    console.log('User info:', user);
+    
+    // Classify the message using OpenAI
+    const classification = await openaiService.classifyMessage(messageBody);
+    console.log('Message classification:', classification);
+    
+    // Handle the message based on its type
+    let responseMessage = '';
+    
+    if (classification.is_status_request) {
+      // Handle status request
+      responseMessage = await handleStatusRequest(userId);
+    } else if (classification.type === 'exercise') {
+      // Handle exercise logging
+      responseMessage = await handleExerciseLog(classification, userId, messageBody);
+    } else if (classification.type === 'food') {
+      // Handle food logging
+      responseMessage = await handleFoodLog(classification, userId, messageBody);
+    } else {
+      // Handle unknown message type
+      responseMessage = "I'm not sure what you meant. Please send a message about your exercise, food, or type 'status' for a report.";
     }
+    
+    // Send response back to user
+    console.log(`Sending response to ${userId}: ${responseMessage}`);
+    
+    // For Twilio webhook, return TwiML response
+    const twimlResponse = twilioService.generateTwimlResponse(responseMessage);
+    res.type('text/xml').send(twimlResponse);
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
-module.exports = router; 
+/**
+ * Handle status request
+ * @param {string} userId - User's phone number
+ * @returns {Promise<string>} - Response message
+ */
+async function handleStatusRequest(userId) {
+  try {
+    // Get user status from sheets
+    const status = await sheetsService.getUserStatus(userId);
+    
+    if (!status.success) {
+      return "Sorry, I couldn't retrieve your status right now. Please try again later.";
+    }
+    
+    // Format the status message
+    const { summary, exerciseLogs, foodLogs } = status;
+    
+    // Build a simple text report
+    let report = '📊 *Your Weekly Health Report* 📊\n\n';
+    
+    // Add summary section
+    report += '*Weekly Summary:*\n';
+    report += `• Exercise sessions: ${summary.exerciseCount} sessions\n`;
+    report += `• Average duration: ${summary.averageDuration} minutes\n`;
+    report += `• Food logs: ${summary.foodLogCount} entries\n\n`;
+    
+    // Add exercise logs (limited to 5 most recent)
+    report += '*Recent Exercise Logs:*\n';
+    if (exerciseLogs.length > 0) {
+      exerciseLogs
+        .sort((a, b) => b.date - a.date) // Sort by date descending
+        .slice(0, 5) // Take the 5 most recent
+        .forEach(log => {
+          const date = log.date.toLocaleDateString();
+          report += `• ${date}: ${log.duration} mins of ${log.type}${log.distance ? ` (${log.distance})` : ''}\n`;
+        });
+    } else {
+      report += 'No exercise logs in the past week.\n';
+    }
+    report += '\n';
+    
+    // Add food logs (limited to 5 most recent)
+    report += '*Recent Food Logs:*\n';
+    if (foodLogs.length > 0) {
+      foodLogs
+        .sort((a, b) => b.date - a.date) // Sort by date descending
+        .slice(0, 5) // Take the 5 most recent
+        .forEach(log => {
+          const date = log.date.toLocaleDateString();
+          report += `• ${date}: ${log.foodItems}\n`;
+        });
+    } else {
+      report += 'No food logs in the past week.\n';
+    }
+    
+    return report;
+  } catch (error) {
+    console.error('Error generating status report:', error);
+    return "Sorry, I couldn't create your status report. Please try again later.";
+  }
+}
+
+/**
+ * Handle exercise log
+ * @param {Object} data - Exercise data
+ * @param {string} userId - User's phone number
+ * @param {string} rawMessage - Original message
+ * @returns {Promise<string>} - Response message
+ */
+async function handleExerciseLog(data, userId, rawMessage) {
+  try {
+    // Log exercise to sheets
+    const result = await sheetsService.logExercise(data, userId, rawMessage);
+    
+    if (!result.success) {
+      return "Sorry, I couldn't log your exercise. Please try again later.";
+    }
+    
+    // Build a confirmation message
+    let confirmation = '✅ *Exercise Logged!* ✅\n\n';
+    
+    if (data.duration_minutes) {
+      confirmation += `Duration: ${data.duration_minutes} minutes\n`;
+    }
+    
+    if (data.exercise_type) {
+      confirmation += `Type: ${data.exercise_type}\n`;
+    }
+    
+    if (data.distance) {
+      confirmation += `Distance: ${data.distance}\n`;
+    }
+    
+    confirmation += '\nKeep up the good work! 💪';
+    
+    return confirmation;
+  } catch (error) {
+    console.error('Error logging exercise:', error);
+    return "Sorry, I couldn't log your exercise. Please try again later.";
+  }
+}
+
+/**
+ * Handle food log
+ * @param {Object} data - Food data
+ * @param {string} userId - User's phone number
+ * @param {string} rawMessage - Original message
+ * @returns {Promise<string>} - Response message
+ */
+async function handleFoodLog(data, userId, rawMessage) {
+  try {
+    // Log food to sheets
+    const result = await sheetsService.logFood(data, userId, rawMessage);
+    
+    if (!result.success) {
+      return "Sorry, I couldn't log your food. Please try again later.";
+    }
+    
+    // Build a confirmation message
+    let confirmation = '✅ *Food Logged!* ✅\n\n';
+    
+    if (data.food_items) {
+      confirmation += `Food: ${data.food_items}\n`;
+    }
+    
+    confirmation += '\nThanks for logging your meal! 🍎';
+    
+    return confirmation;
+  } catch (error) {
+    console.error('Error logging food:', error);
+    return "Sorry, I couldn't log your food. Please try again later.";
+  }
+}
+
+module.exports = router;
