@@ -1,24 +1,17 @@
 {
   "name": "health-tracker-mvp",
   "version": "1.0.0",
-  "description": "Simple health tracker that processes WhatsApp messages",
+  "description": "Simple health tracker app",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
+    "start": "node app.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "airtable": "^0.11.6",
-    "body-parser": "^1.20.2",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "openai": "^4.20.1",
-    "twilio": "^4.19.0"
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.3.1"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+  "engines": {
+    "node": "18.x"
   }
 }
