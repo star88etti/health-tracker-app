@@ -10,6 +10,12 @@ const twilioService = require('../services/twilioService');
  */
 router.post('/message', async (req, res) => {
   try {
+    console.log('------------------------');
+    console.log('Webhook request received:');
+    console.log('Body:', JSON.stringify(req.body));
+    console.log('Headers:', JSON.stringify(req.headers));
+    console.log('------------------------');
+    
     // For production, uncomment this to validate Twilio requests
     // if (!twilioService.validateRequest(req)) {
     //   return res.status(403).send('Forbidden');
@@ -18,6 +24,8 @@ router.post('/message', async (req, res) => {
     // Extract message info from the request
     const messageBody = req.body.Body || '';
     const from = req.body.From || '';
+    
+    
     
     // Extract user ID (phone number) from the "from" field
     // Twilio WhatsApp format: "whatsapp:+1234567890"

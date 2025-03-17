@@ -165,6 +165,7 @@ async function logFood(data, userId, rawMessage) {
   }
 }
 
+
 /**
  * Get user's exercise and food logs for status report
  * @param {string} userId - User's phone number
@@ -175,48 +176,109 @@ async function getUserStatus(userId, days = 7) {
   try {
     console.log(`Getting status for user ${userId} for the past ${days} days`);
     
+    if (!userId) {
+      console.error('No userId provided for getUserStatus');
+      return {
+        success: false,
+        error: 'User ID is required'
+      };
+    }
+    
     // Calculate date threshold (7 days ago)
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - days);
     const thresholdString = formatDateForAirtable(dateThreshold);
     
+    console.log(`Looking for records since ${thresholdString}`);
+    
     const base = getBase();
     
-    // Get exercise logs
+    // Get exercise logs - with additional logging
     console.log(`Querying ${config.airtable.tables.exerciseLogs} table for user ${userId}`);
-    const exerciseRecords = await base(config.airtable.tables.exerciseLogs)
-      .select({
-        filterByFormula: `AND({userId} = '${userId}', {timestamp} >= '${thresholdString}')`,
-        sort: [{ field: 'timestamp', direction: 'desc' }]
-      })
-      .all();
+    try {
+      // First check if the table exists and is accessible
+      const testQuery = await base(config.airtable.tables.exerciseLogs)
+        .select({ maxRecords: 1 })
+        .firstPage();
+      console.log(`Exercise logs table test query successful, found ${testQuery.length} records`);
+    } catch (err) {
+      console.error(`Error accessing exercise logs table: ${err.message}`);
+    }
     
-    console.log(`Found ${exerciseRecords.length} exercise records`);
+    // Proceed with the actual query
+    let exerciseRecords = [];
+    try {
+      exerciseRecords = await base(config.airtable.tables.exerciseLogs)
+        .select({
+          filterByFormula: `{userId} = '${userId}'` // Simplified formula without date filter for testing
+        })
+        .all();
+      
+      console.log(`Found ${exerciseRecords.length} total exercise records for user`);
+      
+      // Filter by date in JavaScript instead of Airtable formula to avoid formula issues
+      exerciseRecords = exerciseRecords.filter(record => {
+        const recordDate = new Date(record.get('timestamp'));
+        return recordDate >= dateThreshold;
+      });
+      
+      console.log(`Found ${exerciseRecords.length} exercise records within date range`);
+    } catch (err) {
+      console.error(`Error retrieving exercise logs: ${err.message}`);
+      exerciseRecords = [];
+    }
     
-    // Get food logs
+    // Get food logs with similar approach
     console.log(`Querying ${config.airtable.tables.foodLogs} table for user ${userId}`);
-    const foodRecords = await base(config.airtable.tables.foodLogs)
-      .select({
-        filterByFormula: `AND({userId} = '${userId}', {timestamp} >= '${thresholdString}')`,
-        sort: [{ field: 'timestamp', direction: 'desc' }]
-      })
-      .all();
+    let foodRecords = [];
+    try {
+      foodRecords = await base(config.airtable.tables.foodLogs)
+        .select({
+          filterByFormula: `{userId} = '${userId}'` // Simplified formula
+        })
+        .all();
+      
+      console.log(`Found ${foodRecords.length} total food records for user`);
+      
+      // Filter by date in JavaScript
+      foodRecords = foodRecords.filter(record => {
+        const recordDate = new Date(record.get('timestamp'));
+        return recordDate >= dateThreshold;
+      });
+      
+      console.log(`Found ${foodRecords.length} food records within date range`);
+    } catch (err) {
+      console.error(`Error retrieving food logs: ${err.message}`);
+      foodRecords = [];
+    }
     
-    console.log(`Found ${foodRecords.length} food records`);
+    // Process exercise logs - with extra error handling
+    const exerciseLogs = [];
+    for (const record of exerciseRecords) {
+      try {
+        exerciseLogs.push({
+          date: new Date(record.get('timestamp')),
+          duration: parseInt(record.get('duration')) || 0,
+          type: record.get('type') || 'Unknown',
+          distance: record.get('distance') || ''
+        });
+      } catch (err) {
+        console.error(`Error processing exercise record: ${err.message}`);
+      }
+    }
     
-    // Process exercise logs
-    const exerciseLogs = exerciseRecords.map(record => ({
-      date: new Date(record.get('timestamp')),
-      duration: record.get('duration') || 0,
-      type: record.get('type') || 'Unknown',
-      distance: record.get('distance') || ''
-    }));
-    
-    // Process food logs
-    const foodLogs = foodRecords.map(record => ({
-      date: new Date(record.get('timestamp')),
-      foodItems: record.get('foodItems') || 'Unknown'
-    }));
+    // Process food logs - with extra error handling
+    const foodLogs = [];
+    for (const record of foodRecords) {
+      try {
+        foodLogs.push({
+          date: new Date(record.get('timestamp')),
+          foodItems: record.get('foodItems') || 'Unknown'
+        });
+      } catch (err) {
+        console.error(`Error processing food record: ${err.message}`);
+      }
+    }
     
     // Calculate summary statistics
     const totalExerciseSessions = exerciseLogs.length;

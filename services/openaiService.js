@@ -64,24 +64,100 @@ For "status" → {"type": "status", "duration_minutes": null, "distance": "", "e
   } catch (error) {
     console.error('Error classifying message with OpenAI:', error);
     
-    // For messages about running or exercise, provide a fallback
+    // Enhanced fallback: check for status request first
     const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('ran') || lowerMessage.includes('run') || 
-        lowerMessage.includes('jog') || lowerMessage.includes('exercise') ||
-        lowerMessage.includes('workout') || lowerMessage.includes('mile')) {
-      console.log('Fallback: Detected exercise-related terms in message');
+    
+    // Check for status request
+    if (lowerMessage.includes('status') || lowerMessage.includes('report') || 
+        lowerMessage === 'status' || lowerMessage === 'report') {
+      console.log('Fallback: Detected status request');
       return {
-        type: 'exercise',
-        is_status_request: false,
-        exercise_type: 'running',
+        type: 'status',
+        is_status_request: true,
+        exercise_type: '',
         duration_minutes: null,
         distance: null,
-        confidence: 70,
+        food_items: '',
+        confidence: 85,
         fallback: true
       };
     }
     
-    // Return a default fallback response
+    // Check for exercise-related terms
+    if (lowerMessage.includes('ran') || lowerMessage.includes('run') || 
+        lowerMessage.includes('jog') || lowerMessage.includes('exercise') ||
+        lowerMessage.includes('workout') || lowerMessage.includes('mile') ||
+        lowerMessage.includes('gym') || lowerMessage.includes('training') ||
+        lowerMessage.includes('walked') || lowerMessage.includes('walk')) {
+      console.log('Fallback: Detected exercise-related terms in message');
+      
+      // Try to extract duration using regex
+      let duration = null;
+      const durationMatch = lowerMessage.match(/(\d+)\s*(?:minute|min|minutes)/i);
+      if (durationMatch) {
+        duration = parseInt(durationMatch[1], 10);
+      }
+      
+      // Try to extract distance using regex
+      let distance = null;
+      const distanceMatch = lowerMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|km|kilometer|kilometers)/i);
+      if (distanceMatch) {
+        distance = distanceMatch[0];
+      }
+      
+      // Determine exercise type
+      let exerciseType = 'running';
+      if (lowerMessage.includes('walk')) exerciseType = 'walking';
+      if (lowerMessage.includes('swim')) exerciseType = 'swimming';
+      if (lowerMessage.includes('bik')) exerciseType = 'biking';
+      if (lowerMessage.includes('gym') || lowerMessage.includes('lift')) exerciseType = 'strength training';
+      
+      return {
+        type: 'exercise',
+        is_status_request: false,
+        exercise_type: exerciseType,
+        duration_minutes: duration,
+        distance: distance,
+        food_items: '',
+        confidence: 75,
+        fallback: true
+      };
+    }
+    
+    // Check for food-related terms
+    if (lowerMessage.includes('ate') || lowerMessage.includes('eat') || 
+        lowerMessage.includes('food') || lowerMessage.includes('meal') ||
+        lowerMessage.includes('breakfast') || lowerMessage.includes('lunch') || 
+        lowerMessage.includes('dinner') || lowerMessage.includes('snack') ||
+        lowerMessage.includes('salad') || lowerMessage.includes('fruit') ||
+        lowerMessage.includes('vegetable') || lowerMessage.includes('protein') ||
+        lowerMessage.includes('had') && 
+          (lowerMessage.includes('for breakfast') || 
+           lowerMessage.includes('for lunch') || 
+           lowerMessage.includes('for dinner'))) {
+      
+      console.log('Fallback: Detected food-related terms in message');
+      
+      // Extract the food items - just use the whole message as food items
+      // Strip common prefixes like "I had" or "I ate"
+      let foodItems = message;
+      foodItems = foodItems.replace(/^i (had|ate|consumed|eat)/i, '').trim();
+      foodItems = foodItems.replace(/^(had|ate|consumed)/i, '').trim();
+      foodItems = foodItems.replace(/for (breakfast|lunch|dinner|snack)/i, '').trim();
+      
+      return {
+        type: 'food',
+        is_status_request: false,
+        exercise_type: '',
+        duration_minutes: null,
+        distance: null,
+        food_items: foodItems,
+        confidence: 75,
+        fallback: true
+      };
+    }
+    
+    // Default fallback if nothing else matches
     return {
       type: 'unknown',
       is_status_request: false,
