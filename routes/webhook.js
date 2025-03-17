@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const openaiService = require('../services/openaiService');
-const sheetsService = require('../services/sheetsService');
+const airtableService = require('../services/airtableService');
 const twilioService = require('../services/twilioService');
 
 /**
@@ -26,7 +26,7 @@ router.post('/message', async (req, res) => {
     console.log(`Received message from ${userId}: ${messageBody}`);
     
     // Ensure user exists in our database
-    const user = await sheetsService.ensureUserExists(userId);
+    const user = await airtableService.ensureUserExists(userId);
     console.log('User info:', user);
     
     // Classify the message using OpenAI
@@ -69,8 +69,8 @@ router.post('/message', async (req, res) => {
  */
 async function handleStatusRequest(userId) {
   try {
-    // Get user status from sheets
-    const status = await sheetsService.getUserStatus(userId);
+    // Get user status from Airtable
+    const status = await airtableService.getUserStatus(userId);
     
     if (!status.success) {
       return "Sorry, I couldn't retrieve your status right now. Please try again later.";
@@ -133,8 +133,8 @@ async function handleStatusRequest(userId) {
  */
 async function handleExerciseLog(data, userId, rawMessage) {
   try {
-    // Log exercise to sheets
-    const result = await sheetsService.logExercise(data, userId, rawMessage);
+    // Log exercise to Airtable
+    const result = await airtableService.logExercise(data, userId, rawMessage);
     
     if (!result.success) {
       return "Sorry, I couldn't log your exercise. Please try again later.";
@@ -173,8 +173,8 @@ async function handleExerciseLog(data, userId, rawMessage) {
  */
 async function handleFoodLog(data, userId, rawMessage) {
   try {
-    // Log food to sheets
-    const result = await sheetsService.logFood(data, userId, rawMessage);
+    // Log food to Airtable
+    const result = await airtableService.logFood(data, userId, rawMessage);
     
     if (!result.success) {
       return "Sorry, I couldn't log your food. Please try again later.";
