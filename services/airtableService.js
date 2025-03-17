@@ -3,12 +3,27 @@ const Airtable = require('airtable');
 const config = require('../config');
 
 // Initialize Airtable with Personal Access Token
-Airtable.configure({
-  apiKey: config.airtable.personalAccessToken,
-  endpointUrl: 'https://api.airtable.com'
-});
+console.log('Configuring Airtable with baseId:', config.airtable.baseId);
+console.log('Using tables:', JSON.stringify(config.airtable.tables));
 
-const base = Airtable.base(config.airtable.baseId);
+try {
+  Airtable.configure({
+    apiKey: config.airtable.personalAccessToken,
+    endpointUrl: 'https://api.airtable.com'
+  });
+} catch (error) {
+  console.error('Error initializing Airtable:', error);
+}
+
+// Get base with error handling
+function getBase() {
+  try {
+    return Airtable.base(config.airtable.baseId);
+  } catch (error) {
+    console.error('Error getting Airtable base:', error);
+    throw new Error(`Failed to get Airtable base: ${error.message}`);
+  }
+}
 
 /**
  * Log exercise data to Airtable
@@ -19,18 +34,32 @@ const base = Airtable.base(config.airtable.baseId);
  */
 async function logExercise(data, userId, rawMessage) {
   try {
-    const result = await base(config.airtable.tables.exerciseLogs).create([
-      {
-        fields: {
-          timestamp: new Date().toISOString(),
-          userId: userId,
-          duration: data.duration_minutes || 0,
-          type: data.exercise_type || '',
-          distance: data.distance || '',
-          rawMessage: rawMessage
-        }
-      }
-    ]);
+    console.log('Logging exercise to Airtable:', { data, userId });
+    
+    // Validate required data
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.exerciseLogs;
+    console.log(`Using table: ${tableName}`);
+    
+    // Create record object with safe defaults
+    const fields = {
+      timestamp: new Date(), // Send as JavaScript Date object instead of ISO string
+      userId: userId,
+      duration: data.duration_minutes || 0,
+      type: data.exercise_type || 'exercise',
+      distance: data.distance || '',
+      rawMessage: rawMessage || ''
+    };
+    
+    console.log('Creating Airtable record with fields:', fields);
+    
+    const result = await base(tableName).create([{ fields }]);
+    
+    console.log('Successfully created Airtable record:', result[0].id);
     
     return {
       success: true,
@@ -38,6 +67,16 @@ async function logExercise(data, userId, rawMessage) {
     };
   } catch (error) {
     console.error('Error logging exercise to Airtable:', error);
+    // Show more details about the error
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      config: {
+        baseId: config.airtable.baseId,
+        table: config.airtable.tables.exerciseLogs
+      }
+    });
+    
     return {
       success: false,
       error: error.message
@@ -54,16 +93,30 @@ async function logExercise(data, userId, rawMessage) {
  */
 async function logFood(data, userId, rawMessage) {
   try {
-    const result = await base(config.airtable.tables.foodLogs).create([
-      {
-        fields: {
-          timestamp: new Date().toISOString(),
-          userId: userId,
-          foodItems: data.food_items || '',
-          rawMessage: rawMessage
-        }
-      }
-    ]);
+    console.log('Logging food to Airtable:', { data, userId });
+    
+    // Validate required data
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.foodLogs;
+    console.log(`Using table: ${tableName}`);
+    
+    // Create record object with safe defaults
+    const fields = {
+      timestamp: new Date(), // Send as JavaScript Date object instead of ISO string
+      userId: userId,
+      foodItems: data.food_items || '',
+      rawMessage: rawMessage || ''
+    };
+    
+    console.log('Creating Airtable record with fields:', fields);
+    
+    const result = await base(tableName).create([{ fields }]);
+    
+    console.log('Successfully created Airtable record:', result[0].id);
     
     return {
       success: true,
@@ -71,6 +124,15 @@ async function logFood(data, userId, rawMessage) {
     };
   } catch (error) {
     console.error('Error logging food to Airtable:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      config: {
+        baseId: config.airtable.baseId,
+        table: config.airtable.tables.foodLogs
+      }
+    });
+    
     return {
       success: false,
       error: error.message
@@ -86,26 +148,36 @@ async function logFood(data, userId, rawMessage) {
  */
 async function getUserStatus(userId, days = 7) {
   try {
+    console.log(`Getting status for user ${userId} for the past ${days} days`);
+    
     // Calculate date threshold (7 days ago)
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - days);
     const thresholdString = dateThreshold.toISOString();
     
+    const base = getBase();
+    
     // Get exercise logs
+    console.log(`Querying ${config.airtable.tables.exerciseLogs} table for user ${userId}`);
     const exerciseRecords = await base(config.airtable.tables.exerciseLogs)
       .select({
-        filterByFormula: `AND({userId} = '${userId}', {timestamp} > '${thresholdString}')`,
+        filterByFormula: `AND({userId} = '${userId}', IS_AFTER({timestamp}, '${thresholdString}'))`,
         sort: [{ field: 'timestamp', direction: 'desc' }]
       })
       .all();
     
+    console.log(`Found ${exerciseRecords.length} exercise records`);
+    
     // Get food logs
+    console.log(`Querying ${config.airtable.tables.foodLogs} table for user ${userId}`);
     const foodRecords = await base(config.airtable.tables.foodLogs)
       .select({
-        filterByFormula: `AND({userId} = '${userId}', {timestamp} > '${thresholdString}')`,
+        filterByFormula: `AND({userId} = '${userId}', IS_AFTER({timestamp}, '${thresholdString}'))`,
         sort: [{ field: 'timestamp', direction: 'desc' }]
       })
       .all();
+    
+    console.log(`Found ${foodRecords.length} food records`);
     
     // Process exercise logs
     const exerciseLogs = exerciseRecords.map(record => ({
@@ -132,6 +204,8 @@ async function getUserStatus(userId, days = 7) {
       averageDuration = Math.round(totalDuration / sessionsWithDuration.length);
     }
     
+    console.log('Status report generated successfully');
+    
     // Return data and summary
     return {
       success: true,
@@ -145,6 +219,15 @@ async function getUserStatus(userId, days = 7) {
     };
   } catch (error) {
     console.error('Error getting user status from Airtable:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      config: {
+        baseId: config.airtable.baseId,
+        tables: config.airtable.tables
+      }
+    });
+    
     return {
       success: false,
       error: error.message
@@ -159,8 +242,18 @@ async function getUserStatus(userId, days = 7) {
  */
 async function ensureUserExists(userId) {
   try {
+    console.log(`Ensuring user exists: ${userId}`);
+    
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.users;
+    
     // Check if user exists
-    const existingUsers = await base(config.airtable.tables.users)
+    console.log(`Checking if user exists in ${tableName} table`);
+    const existingUsers = await base(tableName)
       .select({
         filterByFormula: `{userId} = '${userId}'`
       })
@@ -168,7 +261,9 @@ async function ensureUserExists(userId) {
     
     if (existingUsers.length === 0) {
       // User doesn't exist, create new user
-      const newUser = await base(config.airtable.tables.users).create([
+      console.log(`User ${userId} not found, creating new user`);
+      
+      const newUser = await base(tableName).create([
         {
           fields: {
             userId: userId,
@@ -179,6 +274,8 @@ async function ensureUserExists(userId) {
           }
         }
       ]);
+      
+      console.log(`Created new user with ID: ${newUser[0].id}`);
       
       return {
         userId,
@@ -191,6 +288,8 @@ async function ensureUserExists(userId) {
     
     // Return existing user info
     const userRecord = existingUsers[0];
+    console.log(`Found existing user with record ID: ${userRecord.id}`);
+    
     return {
       userId,
       isNew: false,
@@ -200,6 +299,17 @@ async function ensureUserExists(userId) {
     };
   } catch (error) {
     console.error('Error ensuring user exists in Airtable:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      userId: userId,
+      config: {
+        baseId: config.airtable.baseId,
+        table: config.airtable.tables.users
+      }
+    });
+    
+    // Return a default user object even if there was an error
     return {
       userId,
       isNew: false,
