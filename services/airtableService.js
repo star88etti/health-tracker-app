@@ -407,9 +407,138 @@ async function ensureUserExists(userId) {
   }
 }
 
+/**
+ * Get exercise logs for a specific user
+ * @param {string} userId - User's phone number
+ * @param {number} days - Optional number of days to look back (default: all logs)
+ * @returns {Promise<Object>} - User's exercise logs
+ */
+async function getUserExerciseLogs(userId, days = null) {
+  try {
+    console.log(`Getting exercise logs for user ${userId}`);
+    
+    if (!userId) {
+      console.error('No userId provided for getUserExerciseLogs');
+      return {
+        success: false,
+        error: 'User ID is required'
+      };
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.exerciseLogs;
+    
+    // Set up filter formula
+    let filterFormula = `{userId} = '${userId}'`;
+    
+    // Add date filter if specified
+    if (days) {
+      const dateThreshold = new Date();
+      dateThreshold.setDate(dateThreshold.getDate() - days);
+      const thresholdString = formatDateForAirtable(dateThreshold);
+      filterFormula = `AND(${filterFormula}, {timestamp} >= '${thresholdString}')`;
+    }
+    
+    // Query Airtable
+    const records = await base(tableName)
+      .select({
+        filterByFormula: filterFormula,
+        sort: [{ field: 'timestamp', direction: 'desc' }]
+      })
+      .all();
+    
+    console.log(`Found ${records.length} exercise logs for user ${userId}`);
+    
+    // Process records
+    const logs = records.map(record => ({
+      id: record.id,
+      timestamp: record.get('timestamp'),
+      duration: parseInt(record.get('duration')) || 0,
+      type: record.get('type') || 'exercise',
+      distance: record.get('distance') || '',
+      rawMessage: record.get('rawMessage') || ''
+    }));
+    
+    return {
+      success: true,
+      logs
+    };
+  } catch (error) {
+    console.error(`Error getting exercise logs for user ${userId}:`, error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get food logs for a specific user
+ * @param {string} userId - User's phone number
+ * @param {number} days - Optional number of days to look back (default: all logs)
+ * @returns {Promise<Object>} - User's food logs
+ */
+async function getUserFoodLogs(userId, days = null) {
+  try {
+    console.log(`Getting food logs for user ${userId}`);
+    
+    if (!userId) {
+      console.error('No userId provided for getUserFoodLogs');
+      return {
+        success: false,
+        error: 'User ID is required'
+      };
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.foodLogs;
+    
+    // Set up filter formula
+    let filterFormula = `{userId} = '${userId}'`;
+    
+    // Add date filter if specified
+    if (days) {
+      const dateThreshold = new Date();
+      dateThreshold.setDate(dateThreshold.getDate() - days);
+      const thresholdString = formatDateForAirtable(dateThreshold);
+      filterFormula = `AND(${filterFormula}, {timestamp} >= '${thresholdString}')`;
+    }
+    
+    // Query Airtable
+    const records = await base(tableName)
+      .select({
+        filterByFormula: filterFormula,
+        sort: [{ field: 'timestamp', direction: 'desc' }]
+      })
+      .all();
+    
+    console.log(`Found ${records.length} food logs for user ${userId}`);
+    
+    // Process records
+    const logs = records.map(record => ({
+      id: record.id,
+      timestamp: record.get('timestamp'),
+      foodItems: record.get('foodItems') || '',
+      rawMessage: record.get('rawMessage') || ''
+    }));
+    
+    return {
+      success: true,
+      logs
+    };
+  } catch (error) {
+    console.error(`Error getting food logs for user ${userId}:`, error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
 module.exports = {
   logExercise,
   logFood,
   getUserStatus,
-  ensureUserExists
+  ensureUserExists,
+  getUserExerciseLogs,
+  getUserFoodLogs
 };
