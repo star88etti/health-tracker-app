@@ -25,6 +25,12 @@ function getBase() {
   }
 }
 
+// Format date for Airtable - converts to YYYY-MM-DD format
+function formatDateForAirtable(date) {
+  const d = new Date(date);
+  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+}
+
 /**
  * Log exercise data to Airtable
  * @param {Object} data - Exercise data
@@ -45,13 +51,32 @@ async function logExercise(data, userId, rawMessage) {
     const tableName = config.airtable.tables.exerciseLogs;
     console.log(`Using table: ${tableName}`);
     
-    // Create record object with safe defaults
+    // Try to parse duration and distance from the message if not provided
+    let duration = data.duration_minutes || 0;
+    let distance = data.distance || '';
+    
+    // Simple regex extraction for duration and distance if not provided
+    if (!duration && rawMessage) {
+      const durationMatch = rawMessage.match(/(\d+)\s*(?:minute|min|minutes)/i);
+      if (durationMatch) {
+        duration = parseInt(durationMatch[1], 10);
+      }
+    }
+    
+    if (!distance && rawMessage) {
+      const distanceMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|km|kilometer|kilometers)/i);
+      if (distanceMatch) {
+        distance = distanceMatch[0];
+      }
+    }
+    
+    // Create record object with safe defaults and formatted date
     const fields = {
-      timestamp: new Date(), // Send as JavaScript Date object instead of ISO string
+      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
       userId: userId,
-      duration: data.duration_minutes || 0,
+      duration: duration,
       type: data.exercise_type || 'exercise',
-      distance: data.distance || '',
+      distance: distance,
       rawMessage: rawMessage || ''
     };
     
@@ -106,7 +131,7 @@ async function logFood(data, userId, rawMessage) {
     
     // Create record object with safe defaults
     const fields = {
-      timestamp: new Date(), // Send as JavaScript Date object instead of ISO string
+      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
       userId: userId,
       foodItems: data.food_items || '',
       rawMessage: rawMessage || ''
@@ -153,7 +178,7 @@ async function getUserStatus(userId, days = 7) {
     // Calculate date threshold (7 days ago)
     const dateThreshold = new Date();
     dateThreshold.setDate(dateThreshold.getDate() - days);
-    const thresholdString = dateThreshold.toISOString();
+    const thresholdString = formatDateForAirtable(dateThreshold);
     
     const base = getBase();
     
@@ -161,7 +186,7 @@ async function getUserStatus(userId, days = 7) {
     console.log(`Querying ${config.airtable.tables.exerciseLogs} table for user ${userId}`);
     const exerciseRecords = await base(config.airtable.tables.exerciseLogs)
       .select({
-        filterByFormula: `AND({userId} = '${userId}', IS_AFTER({timestamp}, '${thresholdString}'))`,
+        filterByFormula: `AND({userId} = '${userId}', {timestamp} >= '${thresholdString}')`,
         sort: [{ field: 'timestamp', direction: 'desc' }]
       })
       .all();
@@ -172,7 +197,7 @@ async function getUserStatus(userId, days = 7) {
     console.log(`Querying ${config.airtable.tables.foodLogs} table for user ${userId}`);
     const foodRecords = await base(config.airtable.tables.foodLogs)
       .select({
-        filterByFormula: `AND({userId} = '${userId}', IS_AFTER({timestamp}, '${thresholdString}'))`,
+        filterByFormula: `AND({userId} = '${userId}', {timestamp} >= '${thresholdString}')`,
         sort: [{ field: 'timestamp', direction: 'desc' }]
       })
       .all();
