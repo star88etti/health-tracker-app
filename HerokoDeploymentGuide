@@ -1,0 +1,102 @@
+# Heroku Deployment Guide for Health Tracker
+
+This guide will walk you through deploying your Health Tracker application to Heroku - a simple cloud platform that doesn't require any development expertise.
+
+## Prerequisites
+
+1. Create a [Heroku account](https://signup.heroku.com/) (free tier is sufficient)
+2. Download and install the [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli)
+3. Have [Git installed](https://git-scm.com/downloads) on your computer
+
+## Step 1: Prepare Your Project for Deployment
+
+1. **Add a Procfile**:
+   - Create a new file named `Procfile` (no extension) in your project root
+   - Add this line to the file: `web: node app.js`
+
+2. **Initialize Git Repository**:
+   - Open a terminal/command prompt in your project folder
+   - Run: `git init`
+   - Run: `git add .`
+   - Run: `git commit -m "Initial commit"`
+
+## Step 2: Create a Heroku App
+
+1. **Login to Heroku**:
+   - In your terminal, run: `heroku login`
+   - Follow the prompts to log in
+
+2. **Create a New App**:
+   - Run: `heroku create health-tracker-app` (replace with a unique name)
+   - This will create a new Heroku app and add a remote to your Git repository
+
+## Step 3: Add Environment Variables
+
+1. **Set Environment Variables**:
+   - Run the following commands to set each environment variable:
+   ```
+   heroku config:set TWILIO_ACCOUNT_SID=your_twilio_account_sid
+   heroku config:set TWILIO_AUTH_TOKEN=your_twilio_auth_token
+   heroku config:set TWILIO_PHONE_NUMBER=your_twilio_phone_number
+   heroku config:set OPENAI_API_KEY=your_openai_api_key
+   heroku config:set AIRTABLE_PERSONAL_ACCESS_TOKEN=your_airtable_token
+   heroku config:set AIRTABLE_BASE_ID=your_airtable_base_id
+   ```
+
+   - If you're using custom table IDs, add those too:
+   ```
+   heroku config:set AIRTABLE_USERS_TABLE_ID=your_users_table_id
+   heroku config:set AIRTABLE_EXERCISE_LOGS_TABLE_ID=your_exercise_logs_table_id
+   heroku config:set AIRTABLE_FOOD_LOGS_TABLE_ID=your_food_logs_table_id
+   ```
+
+## Step 4: Deploy Your Application
+
+1. **Push to Heroku**:
+   - Run: `git push heroku main`
+   - Heroku will install dependencies and start your app
+
+2. **Open Your App**:
+   - Run: `heroku open`
+   - This will open your app in a browser (you should see "Health Tracker API is running!")
+
+## Step 5: Configure Twilio Webhook
+
+1. **Get Your Heroku App URL**:
+   - It will look like: `https://your-app-name.herokuapp.com`
+
+2. **Update Twilio Webhook**:
+   - Go to your [Twilio Console](https://console.twilio.com/)
+   - Navigate to Messaging > Settings > WhatsApp Sandbox Settings
+   - In the "When a message comes in" field, enter:
+     `https://your-app-name.herokuapp.com/webhook/message`
+   - Set the method to HTTP POST
+   - Save your changes
+
+## Step 6: Test Your Deployment
+
+1. **Send a Test Message**:
+   - Send a WhatsApp message to your Twilio number (e.g., "I ran for 30 minutes today")
+   - You should receive a confirmation response
+   - Check your Airtable to see if the data was logged correctly
+
+2. **Check Logs if Issues Occur**:
+   - Run: `heroku logs --tail`
+   - This will show you real-time logs from your application
+
+## Troubleshooting
+
+### If Your App Crashes:
+- Check the logs: `heroku logs --tail`
+- Verify all environment variables are set: `heroku config`
+- Make sure your Airtable is set up correctly with the right table names/fields
+
+### If Messages Aren't Being Received:
+- Check your Twilio webhook URL
+- Check Twilio logs in the Twilio Console
+- Verify your WhatsApp sandbox is still active
+
+### If Data Isn't Being Stored:
+- Check your Airtable token and base ID
+- Verify the table names match exactly
+- Check your application logs for any errors
