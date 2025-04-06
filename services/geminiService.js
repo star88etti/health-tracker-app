@@ -1,15 +1,16 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const config = require('../config');
 
-// Initialize Gemini API
+// Initialize Gemini API with the latest configuration
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+
 const model = genAI.getGenerativeModel({ 
-  model: 'gemini-1.0-pro',  // Updated model name
+  model: 'gemini-1.5-pro-002',
   generationConfig: {
-    maxOutputTokens: config.gemini.maxOutputTokens,
-    temperature: config.gemini.temperature,
-    topP: config.gemini.topP,
-    topK: config.gemini.topK
+    temperature: 0.1,
+    topP: 1,
+    topK: 1,
+    maxOutputTokens: 2048,
   }
 });
 
@@ -22,8 +23,8 @@ async function classifyMessage(message) {
   try {
     console.log('Classifying message with Gemini:', message);
     
-    const prompt = `
-You are a health tracking assistant that extracts information from user messages.
+    const parts = [{
+      text: `You are a health tracking assistant that extracts information from user messages.
 
 The message is: "${message}"
 
@@ -33,7 +34,7 @@ Extract the following information if present:
 3. If food: What food items were consumed?
 4. Is this a "status" request?
 
-Return ONLY a JSON object with the following structure:
+Return ONLY a plain JSON object, no markdown formatting, no code blocks, no backticks. The structure should be:
 {
   "type": "exercise" OR "food" OR "status" OR "unknown",
   "duration_minutes": number (if exercise, can be estimated based on typical pace if only distance is given),
@@ -47,16 +48,35 @@ Return ONLY a JSON object with the following structure:
 Be generous in interpretation. If someone mentions running, classify it as exercise even if details are minimal.
 
 EXAMPLES:
-For "I ran 5 miles today" → {"type": "exercise", "duration_minutes": 45, "distance": "5 miles", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 95}
-For "I ran" → {"type": "exercise", "duration_minutes": null, "distance": "", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 90}
-For "I had oatmeal for breakfast" → {"type": "food", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "oatmeal", "is_status_request": false, "confidence": 95}
-For "status" → {"type": "status", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "", "is_status_request": true, "confidence": 99}
-`;
+"I ran 5 miles today" should return:
+{"type": "exercise", "duration_minutes": 45, "distance": "5 miles", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 95}
 
-    const result = await model.generateContent(prompt);
+"I ran" should return:
+{"type": "exercise", "duration_minutes": null, "distance": "", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 90}
+
+"I had oatmeal for breakfast" should return:
+{"type": "food", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "oatmeal", "is_status_request": false, "confidence": 95}
+
+"status" should return:
+{"type": "status", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "", "is_status_request": true, "confidence": 99}
+
+Return ONLY the JSON object, with no additional formatting, no markdown, no code blocks, no backticks.`
+    }];
+
+    const result = await model.generateContent(parts);
     const response = await result.response;
-    const content = response.text();
-    console.log('Gemini classification response:', content);
+    let content = response.text();
+    
+    // Clean up the response - remove any markdown or code block formatting
+    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').replace(/`/g, '').trim();
+    
+    // Try to extract just the JSON object if there's any extra text
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      content = jsonMatch[0];
+    }
+    
+    console.log('Cleaned Gemini response:', content);
     
     const resultJson = JSON.parse(content);
     return resultJson;
@@ -87,14 +107,20 @@ For "status" → {"type": "status", "duration_minutes": null, "distance": "", "e
         lowerMessage.includes('jog') || lowerMessage.includes('exercise') ||
         lowerMessage.includes('workout') || lowerMessage.includes('mile') ||
         lowerMessage.includes('gym') || lowerMessage.includes('training') ||
-        lowerMessage.includes('walked') || lowerMessage.includes('walk')) {
+        lowerMessage.includes('walked') || lowerMessage.includes('walk') ||
+        lowerMessage.includes('ride') || lowerMessage.includes('cycling') ||
+        lowerMessage.includes('bike') || lowerMessage.includes('biking')) {
       console.log('Fallback: Detected exercise-related terms in message');
       
       // Try to extract duration using regex
       let duration = null;
-      const durationMatch = lowerMessage.match(/(\d+)\s*(?:minute|min|minutes)/i);
+      const durationMatch = lowerMessage.match(/(\d+)\s*(?:minute|min|minutes|hr|hour|hours)/i);
       if (durationMatch) {
         duration = parseInt(durationMatch[1], 10);
+        // Convert hours to minutes if needed
+        if (lowerMessage.includes('hour')) {
+          duration *= 60;
+        }
       }
       
       // Try to extract distance using regex
@@ -108,8 +134,10 @@ For "status" → {"type": "status", "duration_minutes": null, "distance": "", "e
       let exerciseType = 'running';
       if (lowerMessage.includes('walk')) exerciseType = 'walking';
       if (lowerMessage.includes('swim')) exerciseType = 'swimming';
-      if (lowerMessage.includes('bik')) exerciseType = 'biking';
-      if (lowerMessage.includes('gym') || lowerMessage.includes('lift')) exerciseType = 'strength training';
+      if (lowerMessage.includes('bik') || lowerMessage.includes('ride') || lowerMessage.includes('cycl')) exerciseType = 'cycling';
+      if (lowerMessage.includes('gym') || lowerMessage.includes('lift') || lowerMessage.includes('weight')) exerciseType = 'strength training';
+      if (lowerMessage.includes('yoga')) exerciseType = 'yoga';
+      if (lowerMessage.includes('hik')) exerciseType = 'hiking';
       
       return {
         type: 'exercise',
