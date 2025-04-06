@@ -63,6 +63,28 @@ router.post('/message', async (req, res) => {
     if (processedMessage.trim().toLowerCase() === 'status') {
       console.log('Direct status request detected');
       const statusResponse = await handleStatusRequest(userId);
+      
+      // For API testing, include classification in response
+      const acceptHeader = req.headers['accept'] || req.headers['Accept'] || '';
+      if (acceptHeader.toLowerCase().includes('application/json')) {
+        console.log('Sending JSON response with classification');
+        return res.json({
+          success: true,
+          classification: {
+            type: 'status',
+            is_status_request: true,
+            exercise_type: '',
+            duration_minutes: null,
+            distance: null,
+            food_items: '',
+            confidence: 99
+          },
+          response: statusResponse
+        });
+      }
+      
+      // For Twilio webhook, return TwiML response
+      console.log('Sending TwiML response');
       const twimlResponse = twilioService.generateTwimlResponse(statusResponse);
       return res.type('text/xml').send(twimlResponse);
     }

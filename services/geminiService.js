@@ -142,7 +142,7 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
       
       // Try to extract distance using regex
       let distance = null;
-      const distanceMatch = lowerMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|km|kilometer|kilometers)/i);
+      const distanceMatch = lowerMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|k|km|kilometer|kilometers)/i);
       if (distanceMatch) {
         distance = distanceMatch[0];
       }
@@ -182,15 +182,24 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
         lowerMessage.includes('dinner') || lowerMessage.includes('snack') ||
         lowerMessage.includes('salad') || lowerMessage.includes('fruit') ||
         lowerMessage.includes('vegetable') || lowerMessage.includes('protein') ||
+        lowerMessage.includes('shake') ||
         (lowerMessage.includes('had') && 
           (lowerMessage.includes('for breakfast') || 
            lowerMessage.includes('for lunch') || 
            lowerMessage.includes('for dinner') ||
-           lowerMessage.includes('to eat')))) {  // Only trigger "had" with food-specific phrases
+           lowerMessage.includes('to eat') ||
+           lowerMessage.includes('shake') ||
+           !lowerMessage.includes('workout') &&
+           !lowerMessage.includes('exercise') &&
+           !lowerMessage.includes('session') &&
+           !lowerMessage.includes('class')))) {
       
       // First check if this is actually about exercise
-      if (lowerMessage.includes('pilates') || lowerMessage.includes('yoga') ||
-          lowerMessage.includes('workout') || lowerMessage.includes('exercise')) {
+      if ((lowerMessage.includes('pilates') || lowerMessage.includes('yoga') ||
+           lowerMessage.includes('workout') || lowerMessage.includes('exercise')) &&
+          !lowerMessage.includes('shake') &&
+          !lowerMessage.includes('after') &&
+          !lowerMessage.includes('before')) {
         console.log('Fallback: Message contains food terms but is about exercise');
         // Handle as exercise instead
         return {
@@ -214,6 +223,7 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
       foodItems = foodItems.replace(/^i (had|ate|consumed|eat)/i, '').trim();
       foodItems = foodItems.replace(/^(had|ate|consumed)/i, '').trim();
       foodItems = foodItems.replace(/for (breakfast|lunch|dinner|snack)/i, '').trim();
+      foodItems = foodItems.replace(/\b(before|after)\b.*?(workout|exercise|pilates|yoga|class|session)/i, '').trim();
       
       return {
         type: 'food',
