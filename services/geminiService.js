@@ -5,12 +5,12 @@ const config = require('../config');
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
 const model = genAI.getGenerativeModel({ 
-  model: 'gemini-1.5-pro-002',
+  model: config.gemini.model,
   generationConfig: {
-    temperature: 0.1,
-    topP: 1,
-    topK: 1,
-    maxOutputTokens: 2048,
+    temperature: config.gemini.temperature,
+    topP: config.gemini.topP,
+    topK: config.gemini.topK,
+    maxOutputTokens: config.gemini.maxOutputTokens,
   }
 });
 
@@ -182,10 +182,29 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
         lowerMessage.includes('dinner') || lowerMessage.includes('snack') ||
         lowerMessage.includes('salad') || lowerMessage.includes('fruit') ||
         lowerMessage.includes('vegetable') || lowerMessage.includes('protein') ||
-        lowerMessage.includes('had') && 
+        (lowerMessage.includes('had') && 
           (lowerMessage.includes('for breakfast') || 
            lowerMessage.includes('for lunch') || 
-           lowerMessage.includes('for dinner'))) {
+           lowerMessage.includes('for dinner') ||
+           lowerMessage.includes('to eat')))) {  // Only trigger "had" with food-specific phrases
+      
+      // First check if this is actually about exercise
+      if (lowerMessage.includes('pilates') || lowerMessage.includes('yoga') ||
+          lowerMessage.includes('workout') || lowerMessage.includes('exercise')) {
+        console.log('Fallback: Message contains food terms but is about exercise');
+        // Handle as exercise instead
+        return {
+          type: 'exercise',
+          is_status_request: false,
+          exercise_type: lowerMessage.includes('pilates') ? 'pilates' : 
+                        lowerMessage.includes('yoga') ? 'yoga' : 'exercise',
+          duration_minutes: null,
+          distance: null,
+          food_items: '',
+          confidence: 75,
+          fallback: true
+        };
+      }
       
       console.log('Fallback: Detected food-related terms in message');
       

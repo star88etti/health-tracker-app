@@ -95,8 +95,21 @@ router.post('/message', async (req, res) => {
     
     // Send response back to user
     console.log(`Sending response to ${userId}: ${responseMessage}`);
+    console.log('Headers:', req.headers); // Add this for debugging
+    
+    // For API testing, include classification in response
+    const acceptHeader = req.headers['accept'] || req.headers['Accept'] || '';
+    if (acceptHeader.toLowerCase().includes('application/json')) {
+      console.log('Sending JSON response with classification');
+      return res.json({
+        success: true,
+        classification,
+        response: responseMessage
+      });
+    }
     
     // For Twilio webhook, return TwiML response
+    console.log('Sending TwiML response');
     const twimlResponse = twilioService.generateTwimlResponse(responseMessage);
     res.type('text/xml').send(twimlResponse);
   } catch (error) {

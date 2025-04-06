@@ -14,11 +14,11 @@ const config = {
   // Gemini settings
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: 'gemini-pro',
+    model: 'gemini-1.5-pro-002',
     maxOutputTokens: 2048,
-    temperature: 0.7,
-    topP: 0.8,
-    topK: 40
+    temperature: 0.1,
+    topP: 1,
+    topK: 1
   },
   
   // Airtable settings
