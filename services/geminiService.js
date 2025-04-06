@@ -60,16 +60,16 @@ Be generous in interpretation. If someone mentions any form of physical activity
 
 EXAMPLES:
 "I did pilates for 45 minutes" should return:
-{"type": "exercise", "duration_minutes": 45, "distance": "", "exercise_type": "pilates", "food_items": "", "is_status_request": false, "confidence": 95}
+{"type": "exercise", "duration_minutes": 45, "distance": "", "exercise_type": "pilates", "food_items": "", "is_status_request": false, "confidence": 75}
 
 "I ran 5 miles today" should return:
-{"type": "exercise", "duration_minutes": 45, "distance": "5 miles", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 95}
+{"type": "exercise", "duration_minutes": 45, "distance": "5 miles", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 75}
 
 "I had oatmeal for breakfast" should return:
-{"type": "food", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "oatmeal", "is_status_request": false, "confidence": 95}
+{"type": "food", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "oatmeal", "is_status_request": false, "confidence": 75}
 
 "status" should return:
-{"type": "status", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "", "is_status_request": true, "confidence": 99}
+{"type": "status", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "", "is_status_request": true, "confidence": 75}
 
 Return ONLY the JSON object, with no additional formatting, no markdown, no code blocks, no backticks.`
     }];
@@ -123,7 +123,7 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
         duration_minutes: null,
         distance: null,
         food_items: '',
-        confidence: 85,
+        confidence: 75,
         fallback: true
       };
     }
