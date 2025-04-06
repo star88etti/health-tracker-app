@@ -96,13 +96,22 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
     try {
       const resultJson = JSON.parse(content);
       console.log('Successfully parsed Gemini response:', resultJson);
-      return resultJson;
+      
+      // Only return the API result if confidence is >= 75
+      if (resultJson.confidence >= 75) {
+        return resultJson;
+      }
+      
+      console.log('Gemini API confidence too low:', resultJson.confidence);
+      // If confidence is too low, throw an error to trigger fallback
+      throw new Error('Confidence too low');
+      
     } catch (parseError) {
       console.error('Error parsing Gemini response:', parseError);
       throw new Error('Failed to parse Gemini response as JSON');
     }
   } catch (error) {
-    console.error('Error in Gemini API call:', error);
+    console.error('Error in Gemini API call or low confidence:', error);
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
