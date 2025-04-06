@@ -1,9 +1,10 @@
 // Webhook route handlers
 const express = require('express');
 const router = express.Router();
-const openaiService = require('../services/openaiService');
+const geminiService = require('../services/geminiService');
 const airtableService = require('../services/airtableService');
 const twilioService = require('../services/twilioService');
+const axios = require('axios');
 
 /**
  * Webhook endpoint for handling incoming messages
@@ -23,15 +24,43 @@ router.post('/message', async (req, res) => {
     // Extract message info from the request
     const messageBody = req.body.Body || '';
     const from = req.body.From || '';
+    const mediaUrl = req.body.MediaUrl0; // For voice messages
     
     // Extract user ID (phone number) from the "from" field
     // Twilio WhatsApp format: "whatsapp:+1234567890"
     const userId = from.replace('whatsapp:', '');
     
-    console.log(`Received message from ${userId}: ${messageBody}`);
+    let processedMessage = messageBody;
     
-    // Special handling for "status" keyword before using OpenAI
-    if (messageBody.trim().toLowerCase() === 'status') {
+    // Handle voice messages
+    if (mediaUrl && req.body.MediaContentType0 === 'audio/ogg') {
+      console.log('Processing voice message from:', userId);
+      try {
+        // Download the voice message
+        const response = await axios.get(mediaUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`
+          }
+        });
+        
+        // Convert voice to text using Gemini's speech-to-text
+        // Note: This is a placeholder - you'll need to implement actual speech-to-text
+        // For now, we'll use a mock response
+        processedMessage = "I ran 5 miles today"; // This would be the actual transcribed text
+        
+        console.log('Voice message processed:', processedMessage);
+      } catch (error) {
+        console.error('Error processing voice message:', error);
+        const twimlResponse = twilioService.generateTwimlResponse("Sorry, I couldn't process your voice message. Please try sending a text message instead.");
+        return res.type('text/xml').send(twimlResponse);
+      }
+    }
+    
+    console.log(`Received message from ${userId}: ${processedMessage}`);
+    
+    // Special handling for "status" keyword before using Gemini
+    if (processedMessage.trim().toLowerCase() === 'status') {
       console.log('Direct status request detected');
       const statusResponse = await handleStatusRequest(userId);
       const twimlResponse = twilioService.generateTwimlResponse(statusResponse);
@@ -42,8 +71,8 @@ router.post('/message', async (req, res) => {
     const user = await airtableService.ensureUserExists(userId);
     console.log('User info:', user);
     
-    // Classify the message using OpenAI
-    const classification = await openaiService.classifyMessage(messageBody);
+    // Classify the message using Gemini
+    const classification = await geminiService.classifyMessage(processedMessage);
     console.log('Message classification:', classification);
     
     // Handle the message based on its type
@@ -55,10 +84,10 @@ router.post('/message', async (req, res) => {
       responseMessage = await handleStatusRequest(userId);
     } else if (classification.type === 'exercise') {
       // Handle exercise logging
-      responseMessage = await handleExerciseLog(classification, userId, messageBody);
+      responseMessage = await handleExerciseLog(classification, userId, processedMessage);
     } else if (classification.type === 'food') {
       // Handle food logging
-      responseMessage = await handleFoodLog(classification, userId, messageBody);
+      responseMessage = await handleFoodLog(classification, userId, processedMessage);
     } else {
       // Handle unknown message type
       responseMessage = "I'm not sure what you meant. Please send a message about your exercise, food, or type 'status' for a report.";

@@ -11,12 +11,14 @@ const config = {
     phoneNumber: process.env.TWILIO_PHONE_NUMBER // Your Twilio WhatsApp number
   },
   
-  // OpenAI settings
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-3.5-turbo', // Changed from gpt-4-turbo-preview to a widely available model
-    maxTokens: 500,
-    temperature: 0.2
+  // Gemini settings
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    model: 'gemini-pro',
+    maxOutputTokens: 2048,
+    temperature: 0.7,
+    topP: 0.8,
+    topK: 40
   },
   
   // Airtable settings
