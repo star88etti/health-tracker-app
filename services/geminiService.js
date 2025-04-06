@@ -45,14 +45,25 @@ Return ONLY a plain JSON object, no markdown formatting, no code blocks, no back
   "confidence": 0-100
 }
 
-Be generous in interpretation. If someone mentions running, classify it as exercise even if details are minimal.
+Be generous in interpretation. If someone mentions any form of physical activity, classify it as exercise. Common exercise types include:
+- running/jogging
+- walking/hiking
+- cycling/biking
+- swimming
+- yoga/pilates
+- strength training/weight lifting
+- dance/zumba
+- martial arts/boxing
+- crossfit/hiit
+- team sports
+- other physical activities
 
 EXAMPLES:
+"I did pilates for 45 minutes" should return:
+{"type": "exercise", "duration_minutes": 45, "distance": "", "exercise_type": "pilates", "food_items": "", "is_status_request": false, "confidence": 95}
+
 "I ran 5 miles today" should return:
 {"type": "exercise", "duration_minutes": 45, "distance": "5 miles", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 95}
-
-"I ran" should return:
-{"type": "exercise", "duration_minutes": null, "distance": "", "exercise_type": "running", "food_items": "", "is_status_request": false, "confidence": 90}
 
 "I had oatmeal for breakfast" should return:
 {"type": "food", "duration_minutes": null, "distance": "", "exercise_type": "", "food_items": "oatmeal", "is_status_request": false, "confidence": 95}
@@ -109,7 +120,13 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
         lowerMessage.includes('gym') || lowerMessage.includes('training') ||
         lowerMessage.includes('walked') || lowerMessage.includes('walk') ||
         lowerMessage.includes('ride') || lowerMessage.includes('cycling') ||
-        lowerMessage.includes('bike') || lowerMessage.includes('biking')) {
+        lowerMessage.includes('bike') || lowerMessage.includes('biking') ||
+        lowerMessage.includes('pilates') || lowerMessage.includes('dance') ||
+        lowerMessage.includes('zumba') || lowerMessage.includes('boxing') ||
+        lowerMessage.includes('martial') || lowerMessage.includes('karate') ||
+        lowerMessage.includes('taekwondo') || lowerMessage.includes('kickboxing') ||
+        lowerMessage.includes('crossfit') || lowerMessage.includes('hiit') ||
+        lowerMessage.includes('circuit') || lowerMessage.includes('sport')) {
       console.log('Fallback: Detected exercise-related terms in message');
       
       // Try to extract duration using regex
@@ -137,6 +154,13 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
       if (lowerMessage.includes('bik') || lowerMessage.includes('ride') || lowerMessage.includes('cycl')) exerciseType = 'cycling';
       if (lowerMessage.includes('gym') || lowerMessage.includes('lift') || lowerMessage.includes('weight')) exerciseType = 'strength training';
       if (lowerMessage.includes('yoga')) exerciseType = 'yoga';
+      if (lowerMessage.includes('pilates')) exerciseType = 'pilates';
+      if (lowerMessage.includes('dance')) exerciseType = 'dance';
+      if (lowerMessage.includes('zumba')) exerciseType = 'zumba';
+      if (lowerMessage.includes('boxing') || lowerMessage.includes('kickboxing')) exerciseType = 'boxing';
+      if (lowerMessage.includes('martial') || lowerMessage.includes('karate') || lowerMessage.includes('taekwondo')) exerciseType = 'martial arts';
+      if (lowerMessage.includes('crossfit')) exerciseType = 'crossfit';
+      if (lowerMessage.includes('hiit') || lowerMessage.includes('circuit')) exerciseType = 'hiit';
       if (lowerMessage.includes('hik')) exerciseType = 'hiking';
       
       return {
