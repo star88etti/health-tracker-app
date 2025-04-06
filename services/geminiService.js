@@ -74,9 +74,13 @@ EXAMPLES:
 Return ONLY the JSON object, with no additional formatting, no markdown, no code blocks, no backticks.`
     }];
 
+    console.log('Sending request to Gemini API...');
     const result = await model.generateContent(parts);
+    console.log('Received response from Gemini API');
+    
     const response = await result.response;
     let content = response.text();
+    console.log('Raw Gemini response:', content);
     
     // Clean up the response - remove any markdown or code block formatting
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').replace(/`/g, '').trim();
@@ -89,10 +93,21 @@ Return ONLY the JSON object, with no additional formatting, no markdown, no code
     
     console.log('Cleaned Gemini response:', content);
     
-    const resultJson = JSON.parse(content);
-    return resultJson;
+    try {
+      const resultJson = JSON.parse(content);
+      console.log('Successfully parsed Gemini response:', resultJson);
+      return resultJson;
+    } catch (parseError) {
+      console.error('Error parsing Gemini response:', parseError);
+      throw new Error('Failed to parse Gemini response as JSON');
+    }
   } catch (error) {
-    console.error('Error classifying message with Gemini:', error);
+    console.error('Error in Gemini API call:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     
     // Enhanced fallback: check for status request first
     const lowerMessage = message.toLowerCase();
