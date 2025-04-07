@@ -27,8 +27,8 @@ const config = {
     baseId: process.env.AIRTABLE_BASE_ID,
     tables: {
       users: process.env.AIRTABLE_USERS_TABLE_ID || 'Users',
-      exerciseLogs: process.env.AIRTABLE_EXERCISE_LOGS_TABLE_ID || 'Exercise Logs',
-      foodLogs: process.env.AIRTABLE_FOOD_LOGS_TABLE_ID || 'Food Logs'
+      exercise: process.env.AIRTABLE_EXERCISE_LOGS_TABLE_ID || 'Exercise Logs',
+      food: process.env.AIRTABLE_FOOD_LOGS_TABLE_ID || 'Food Logs'
     }
   }
 };
