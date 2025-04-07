@@ -48,47 +48,24 @@ async function logExercise(data, userId, rawMessage) {
     }
     
     const base = getBase();
-    const tableName = config.airtable.tables.exerciseLogs;
-    console.log(`Using table: ${tableName}`);
+    const table = base(config.airtable.tables.exercise);
     
-    // Try to parse duration and distance from the message if not provided
-    let duration = data.duration_minutes || 0;
-    let distance = data.distance || '';
-    
-    // Simple regex extraction for duration and distance if not provided
-    if (!duration && rawMessage) {
-      const durationMatch = rawMessage.match(/(\d+)\s*(?:minute|min|minutes)/i);
-      if (durationMatch) {
-        duration = parseInt(durationMatch[1], 10);
+    const record = {
+      fields: {
+        'User ID': userId,
+        'Date': formatDateForAirtable(new Date()),
+        'Type': data.type || 'Unknown',
+        'Duration': data.duration || 0,
+        'Distance': data.distance || 0,
+        'Original Message': rawMessage || '',
+        'Processed Data': JSON.stringify(data)
       }
-    }
-    
-    if (!distance && rawMessage) {
-      const distanceMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|km|kilometer|kilometers)/i);
-      if (distanceMatch) {
-        distance = distanceMatch[0];
-      }
-    }
-    
-    // Create record object with safe defaults and formatted date
-    const fields = {
-      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
-      userId: userId,
-      duration: duration,
-      type: data.exercise_type || 'exercise',
-      distance: distance,
-      rawMessage: rawMessage || ''
     };
     
-    console.log('Creating Airtable record with fields:', fields);
-    
-    const result = await base(tableName).create([{ fields }]);
-    
-    console.log('Successfully created Airtable record:', result[0].id);
-    
+    const result = await table.create(record);
     return {
-      success: true,
-      recordId: result[0].id
+      ...result.fields,
+      originalMessage: rawMessage
     };
   } catch (error) {
     console.error('Error logging exercise to Airtable:', error);
@@ -98,7 +75,7 @@ async function logExercise(data, userId, rawMessage) {
       stack: error.stack,
       config: {
         baseId: config.airtable.baseId,
-        table: config.airtable.tables.exerciseLogs
+        table: config.airtable.tables.exercise
       }
     });
     
@@ -126,26 +103,23 @@ async function logFood(data, userId, rawMessage) {
     }
     
     const base = getBase();
-    const tableName = config.airtable.tables.foodLogs;
-    console.log(`Using table: ${tableName}`);
+    const table = base(config.airtable.tables.food);
     
-    // Create record object with safe defaults
-    const fields = {
-      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
-      userId: userId,
-      foodItems: data.food_items || '',
-      rawMessage: rawMessage || ''
+    const record = {
+      fields: {
+        'User ID': userId,
+        'Date': formatDateForAirtable(new Date()),
+        'Food Items': data.foodItems || [],
+        'Calories': data.calories || 0,
+        'Original Message': rawMessage || '',
+        'Processed Data': JSON.stringify(data)
+      }
     };
     
-    console.log('Creating Airtable record with fields:', fields);
-    
-    const result = await base(tableName).create([{ fields }]);
-    
-    console.log('Successfully created Airtable record:', result[0].id);
-    
+    const result = await table.create(record);
     return {
-      success: true,
-      recordId: result[0].id
+      ...result.fields,
+      originalMessage: rawMessage
     };
   } catch (error) {
     console.error('Error logging food to Airtable:', error);
@@ -154,7 +128,7 @@ async function logFood(data, userId, rawMessage) {
       stack: error.stack,
       config: {
         baseId: config.airtable.baseId,
-        table: config.airtable.tables.foodLogs
+        table: config.airtable.tables.food
       }
     });
     
