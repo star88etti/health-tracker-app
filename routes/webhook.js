@@ -31,6 +31,7 @@ router.post('/message', async (req, res) => {
     const userId = from.replace('whatsapp:', '');
     
     let processedMessage = messageBody;
+    const originalMessage = messageBody; // Store the original message
     
     // Handle voice messages
     if (mediaUrl && req.body.MediaContentType0 === 'audio/ogg') {
@@ -96,6 +97,18 @@ router.post('/message', async (req, res) => {
     // Classify the message using Gemini
     const classification = await geminiService.classifyMessage(processedMessage);
     console.log('Message classification:', classification);
+    
+    // Store the message in Airtable with both processed and original content
+    const messageRecord = await airtableService.logMessage({
+      userId,
+      content: processedMessage,
+      originalContent: originalMessage,
+      type: 'incoming',
+      channel: 'whatsapp',
+      processed: true,
+      category: classification.type,
+      processed_data: classification
+    });
     
     // Handle the message based on its type
     let responseMessage = '';

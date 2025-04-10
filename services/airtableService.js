@@ -620,11 +620,59 @@ async function getRecentMessages(userId, limit = 20) {
   }
 }
 
+/**
+ * Log a message to Airtable
+ * @param {Object} data - Message data
+ * @returns {Promise<Object>} - Result of the operation
+ */
+async function logMessage(data) {
+  try {
+    console.log('Logging message to Airtable:', data);
+    
+    // Validate required data
+    if (!data.userId) {
+      throw new Error('User ID is required');
+    }
+    
+    const base = getBase();
+    const tableName = config.airtable.tables.messages;
+    console.log(`Using table: ${tableName}`);
+    
+    // Create record object
+    const fields = {
+      timestamp: formatDateForAirtable(new Date()),
+      userId: data.userId,
+      content: data.content,
+      originalContent: data.originalContent,
+      type: data.type,
+      channel: data.channel,
+      processed: data.processed,
+      category: data.category,
+      processed_data: JSON.stringify(data.processed_data || {})
+    };
+    
+    console.log('Creating Airtable record with fields:', fields);
+    
+    const result = await base(tableName).create([{ fields }]);
+    
+    console.log('Successfully created Airtable record:', result[0].id);
+    
+    return {
+      success: true,
+      recordId: result[0].id
+    };
+  } catch (error) {
+    console.error('Error logging message to Airtable:', error);
+    throw error;
+  }
+}
+
 // Add this function to the module exports
 module.exports = {
   logExercise,
   logFood,
   getUserStatus,
   ensureUserExists,
-  getRecentMessages
+  getRecentMessages,
+  logMessage
 };
