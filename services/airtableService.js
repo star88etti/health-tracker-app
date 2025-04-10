@@ -603,7 +603,7 @@ async function getRecentMessages(userId, limit = 20) {
 async function getExerciseLogs(phoneNumber, days = 7) {
   try {
     const base = getBase();
-    const table = base(config.airtable.tables.exercise);
+    const table = base(config.airtable.tables.exerciseLogs);
     
     // Calculate date range
     const endDate = new Date();
@@ -612,7 +612,7 @@ async function getExerciseLogs(phoneNumber, days = 7) {
     
     const records = await table.select({
       filterByFormula: `AND(
-        {User ID} = '${phoneNumber}',
+        {userId} = '${phoneNumber}',
         {timestamp} >= '${formatDateForAirtable(startDate)}',
         {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
@@ -642,7 +642,7 @@ async function getExerciseLogs(phoneNumber, days = 7) {
 async function getFoodLogs(phoneNumber, days = 7) {
   try {
     const base = getBase();
-    const table = base(config.airtable.tables.food);
+    const table = base(config.airtable.tables.foodLogs);
     
     // Calculate date range
     const endDate = new Date();
@@ -651,7 +651,7 @@ async function getFoodLogs(phoneNumber, days = 7) {
     
     const records = await table.select({
       filterByFormula: `AND(
-        {User ID} = '${phoneNumber}',
+        {userId} = '${phoneNumber}',
         {timestamp} >= '${formatDateForAirtable(startDate)}',
         {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
