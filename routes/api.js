@@ -43,91 +43,49 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get user health data
+/**
+ * Get health data for a user
+ */
 router.get('/health-data', async (req, res) => {
   try {
-    // Get phone number from query parameter for simplicity
-    const userId = req.query.phoneNumber;
-    if (!userId) {
+    const { phoneNumber, days = 7 } = req.query;
+    
+    if (!phoneNumber) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
     
-    // Default to 7 days, but allow query parameter to override
-    const days = req.query.days ? parseInt(req.query.days) : 7;
+    // Get exercise logs
+    const exerciseLogs = await airtableService.getExerciseLogs(phoneNumber, days);
     
-    const status = await airtableService.getUserStatus(userId, days);
-    
-    if (!status.success) {
-      return res.status(500).json({ error: status.error });
-    }
+    // Get food logs
+    const foodLogs = await airtableService.getFoodLogs(phoneNumber, days);
     
     res.json({
       success: true,
-      data: status
+      data: {
+        exerciseLogs,
+        foodLogs
+      }
     });
   } catch (error) {
     console.error('Error getting health data:', error);
-    res.status(500).json({ error: 'Server error', details: error.message });
+    res.status(500).json({ error: 'Failed to get health data' });
   }
 });
 
-// Get recent messages
+/**
+ * Get messages for a user
+ */
 router.get('/messages', async (req, res) => {
   try {
-    // Get phone number from query parameter
-    const userId = req.query.phoneNumber;
-    if (!userId) {
+    const { phoneNumber } = req.query;
+    
+    if (!phoneNumber) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
     
-    // Get user data from Airtable
-    const status = await airtableService.getUserStatus(userId, 30); // Last 30 days of data
-    
-    // Convert Airtable data to message format
-    const messages = [];
-    
-    if (status.success) {
-      // Add exercise logs as messages
-      status.exerciseLogs.forEach(log => {
-        messages.push({
-          id: `exercise-${Date.now()}-${Math.random()}`,
-          content: log.rawMessage || `Exercise: ${log.type} for ${log.duration} minutes`,
-          timestamp: new Date(log.date),
-          type: 'incoming',
-          channel: 'whatsapp',
-          category: 'exercise',
-          processed: true,
-          processed_data: {
-            exercise: {
-              duration: log.duration,
-              type: log.type,
-              distance: log.distance
-            }
-          }
-        });
-      });
-      
-      // Add food logs as messages
-      status.foodLogs.forEach(log => {
-        messages.push({
-          id: `food-${Date.now()}-${Math.random()}`,
-          content: log.foodItems,
-          timestamp: new Date(log.date),
-          type: 'incoming',
-          channel: 'whatsapp',
-          category: 'food',
-          processed: true,
-          processed_data: {
-            food: {
-              description: log.foodItems
-            }
-          }
-        });
-      });
-    }
-    
-    // Sort messages by timestamp (newest first)
-    messages.sort((a, b) => b.timestamp - a.timestamp);
+    // Get messages from Airtable
+    const messages = await airtableService.getMessages(phoneNumber);
     
     res.json({
       success: true,
@@ -135,7 +93,7 @@ router.get('/messages', async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting messages:', error);
-    res.status(500).json({ error: 'Server error', details: error.message });
+    res.status(500).json({ error: 'Failed to get messages' });
   }
 });
 

@@ -594,11 +594,156 @@ async function getRecentMessages(userId, limit = 20) {
   }
 }
 
+/**
+ * Get exercise logs for a user
+ * @param {string} phoneNumber - User's phone number
+ * @param {number} days - Number of days to look back
+ * @returns {Promise<Array>} - Array of exercise logs
+ */
+async function getExerciseLogs(phoneNumber, days = 7) {
+  try {
+    const base = getBase();
+    const table = base(config.airtable.tables.exercise);
+    
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const records = await table.select({
+      filterByFormula: `AND(
+        {User ID} = '${phoneNumber}',
+        {Date} >= '${formatDateForAirtable(startDate)}',
+        {Date} <= '${formatDateForAirtable(endDate)}'
+      )`,
+      sort: [{ field: 'Date', direction: 'desc' }]
+    }).all();
+    
+    return records.map(record => ({
+      id: record.id,
+      date: record.fields.Date,
+      type: record.fields.Type,
+      duration: record.fields.Duration,
+      distance: record.fields.Distance,
+      originalMessage: record.fields['Original Message']
+    }));
+  } catch (error) {
+    console.error('Error getting exercise logs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get food logs for a user
+ * @param {string} phoneNumber - User's phone number
+ * @param {number} days - Number of days to look back
+ * @returns {Promise<Array>} - Array of food logs
+ */
+async function getFoodLogs(phoneNumber, days = 7) {
+  try {
+    const base = getBase();
+    const table = base(config.airtable.tables.food);
+    
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const records = await table.select({
+      filterByFormula: `AND(
+        {User ID} = '${phoneNumber}',
+        {Date} >= '${formatDateForAirtable(startDate)}',
+        {Date} <= '${formatDateForAirtable(endDate)}'
+      )`,
+      sort: [{ field: 'Date', direction: 'desc' }]
+    }).all();
+    
+    return records.map(record => ({
+      id: record.id,
+      date: record.fields.Date,
+      foodItems: record.fields['Food Items'],
+      calories: record.fields.Calories,
+      originalMessage: record.fields['Original Message']
+    }));
+  } catch (error) {
+    console.error('Error getting food logs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get messages for a user
+ * @param {string} phoneNumber - User's phone number
+ * @returns {Promise<Array>} - Array of messages
+ */
+async function getMessages(phoneNumber) {
+  try {
+    // Get both exercise and food logs
+    const [exerciseLogs, foodLogs] = await Promise.all([
+      getExerciseLogs(phoneNumber, 30), // Last 30 days
+      getFoodLogs(phoneNumber, 30)
+    ]);
+    
+    // Convert logs to message format
+    const messages = [];
+    
+    // Add exercise logs as messages
+    exerciseLogs.forEach(log => {
+      messages.push({
+        id: `exercise-${log.id}`,
+        content: log.originalMessage || `Exercise: ${log.type} for ${log.duration} minutes`,
+        timestamp: new Date(log.date),
+        type: 'incoming',
+        channel: 'whatsapp',
+        category: 'exercise',
+        processed: true,
+        processed_data: {
+          exercise: {
+            duration: log.duration,
+            type: log.type,
+            distance: log.distance
+          }
+        }
+      });
+    });
+    
+    // Add food logs as messages
+    foodLogs.forEach(log => {
+      messages.push({
+        id: `food-${log.id}`,
+        content: log.originalMessage || `Food: ${log.foodItems}`,
+        timestamp: new Date(log.date),
+        type: 'incoming',
+        channel: 'whatsapp',
+        category: 'food',
+        processed: true,
+        processed_data: {
+          food: {
+            items: log.foodItems,
+            calories: log.calories
+          }
+        }
+      });
+    });
+    
+    // Sort messages by timestamp (newest first)
+    messages.sort((a, b) => b.timestamp - a.timestamp);
+    
+    return messages;
+  } catch (error) {
+    console.error('Error getting messages:', error);
+    throw error;
+  }
+}
+
 // Add this function to the module exports
 module.exports = {
   logExercise,
   logFood,
   getUserStatus,
   ensureUserExists,
-  getRecentMessages
+  getRecentMessages,
+  getExerciseLogs,
+  getFoodLogs,
+  getMessages
 };
