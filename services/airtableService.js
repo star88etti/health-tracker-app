@@ -613,19 +613,19 @@ async function getExerciseLogs(phoneNumber, days = 7) {
     const records = await table.select({
       filterByFormula: `AND(
         {User ID} = '${phoneNumber}',
-        {Date} >= '${formatDateForAirtable(startDate)}',
-        {Date} <= '${formatDateForAirtable(endDate)}'
+        {timestamp} >= '${formatDateForAirtable(startDate)}',
+        {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
-      sort: [{ field: 'Date', direction: 'desc' }]
+      sort: [{ field: 'timestamp', direction: 'desc' }]
     }).all();
     
     return records.map(record => ({
       id: record.id,
-      date: record.fields.Date,
-      type: record.fields.Type,
-      duration: record.fields.Duration,
-      distance: record.fields.Distance,
-      originalMessage: record.fields['Original Message']
+      date: record.fields.timestamp,
+      type: record.fields.type,
+      duration: record.fields.duration,
+      distance: record.fields.distance,
+      originalMessage: record.fields.rawMessage
     }));
   } catch (error) {
     console.error('Error getting exercise logs:', error);
@@ -652,18 +652,18 @@ async function getFoodLogs(phoneNumber, days = 7) {
     const records = await table.select({
       filterByFormula: `AND(
         {User ID} = '${phoneNumber}',
-        {Date} >= '${formatDateForAirtable(startDate)}',
-        {Date} <= '${formatDateForAirtable(endDate)}'
+        {timestamp} >= '${formatDateForAirtable(startDate)}',
+        {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
-      sort: [{ field: 'Date', direction: 'desc' }]
+      sort: [{ field: 'timestamp', direction: 'desc' }]
     }).all();
     
     return records.map(record => ({
       id: record.id,
-      date: record.fields.Date,
-      foodItems: record.fields['Food Items'],
-      calories: record.fields.Calories,
-      originalMessage: record.fields['Original Message']
+      date: record.fields.timestamp,
+      foodItems: record.fields.foodItems,
+      calories: record.fields.calories,
+      originalMessage: record.fields.rawMessage
     }));
   } catch (error) {
     console.error('Error getting food logs:', error);
