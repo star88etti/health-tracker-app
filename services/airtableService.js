@@ -684,7 +684,7 @@ async function getExerciseLogs(phoneNumber, days = 7) {
     
     const records = await table.select({
       filterByFormula: `AND(
-        {userId} = '${phoneNumber}',
+        {User ID} = '${phoneNumber}',
         {timestamp} >= '${formatDateForAirtable(startDate)}',
         {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
@@ -696,10 +696,10 @@ async function getExerciseLogs(phoneNumber, days = 7) {
     return records.map(record => ({
       id: record.id,
       date: record.fields.timestamp,
-      type: record.fields.type,
-      duration: record.fields.duration,
-      distance: record.fields.distance,
-      originalMessage: record.fields.rawMessage
+      type: record.fields.Type,
+      duration: record.fields.Duration,
+      distance: record.fields.Distance,
+      originalMessage: record.fields['Original Message']
     }));
   } catch (error) {
     console.error('Error getting exercise logs:', error);
@@ -727,7 +727,7 @@ async function getFoodLogs(phoneNumber, days = 7) {
     
     const records = await table.select({
       filterByFormula: `AND(
-        {userId} = '${phoneNumber}',
+        {User ID} = '${phoneNumber}',
         {timestamp} >= '${formatDateForAirtable(startDate)}',
         {timestamp} <= '${formatDateForAirtable(endDate)}'
       )`,
@@ -739,9 +739,9 @@ async function getFoodLogs(phoneNumber, days = 7) {
     return records.map(record => ({
       id: record.id,
       date: record.fields.timestamp,
-      foodItems: record.fields.foodItems,
-      calories: record.fields.calories,
-      originalMessage: record.fields.rawMessage
+      foodItems: record.fields['Food Items'],
+      calories: record.fields.Calories,
+      originalMessage: record.fields['Original Message']
     }));
   } catch (error) {
     console.error('Error getting food logs:', error);
