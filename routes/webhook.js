@@ -93,25 +93,9 @@ router.post('/message', async (req, res) => {
     const user = await airtableService.ensureUserExists(userId);
     console.log('User info:', user);
     
-    // Classify the message
+    // Classify the message using Gemini
     const classification = await geminiService.classifyMessage(processedMessage);
     console.log('Message classification:', classification);
-    
-    // Handle the classification
-    if (classification.category === 'exercise') {
-      const exerciseData = {
-        type: classification.processed.exercise.type,
-        duration: classification.processed.exercise.duration,
-        distance: classification.processed.exercise.distance
-      };
-      await airtableService.logExercise(exerciseData, userId, processedMessage);
-    } else if (classification.category === 'food') {
-      const foodData = {
-        foodItems: classification.processed.food.items,
-        calories: classification.processed.food.calories
-      };
-      await airtableService.logFood(foodData, userId, processedMessage);
-    }
     
     // Handle the message based on its type
     let responseMessage = '';

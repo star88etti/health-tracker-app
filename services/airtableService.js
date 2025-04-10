@@ -48,24 +48,47 @@ async function logExercise(data, userId, rawMessage) {
     }
     
     const base = getBase();
-    const table = base(config.airtable.tables.exercise);
+    const tableName = config.airtable.tables.exerciseLogs;
+    console.log(`Using table: ${tableName}`);
     
-    const record = {
-      fields: {
-        'User ID': userId,
-        'Date': formatDateForAirtable(new Date()),
-        'Type': data.type || 'Unknown',
-        'Duration': data.duration || 0,
-        'Distance': data.distance || 0,
-        'Original Message': rawMessage || '',
-        'Processed Data': JSON.stringify(data)
+    // Try to parse duration and distance from the message if not provided
+    let duration = data.duration_minutes || 0;
+    let distance = data.distance || '';
+    
+    // Simple regex extraction for duration and distance if not provided
+    if (!duration && rawMessage) {
+      const durationMatch = rawMessage.match(/(\d+)\s*(?:minute|min|minutes)/i);
+      if (durationMatch) {
+        duration = parseInt(durationMatch[1], 10);
       }
+    }
+    
+    if (!distance && rawMessage) {
+      const distanceMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:mile|miles|km|kilometer|kilometers)/i);
+      if (distanceMatch) {
+        distance = distanceMatch[0];
+      }
+    }
+    
+    // Create record object with safe defaults and formatted date
+    const fields = {
+      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
+      userId: userId,
+      duration: duration,
+      type: data.exercise_type || 'exercise',
+      distance: distance,
+      rawMessage: rawMessage || ''
     };
     
-    const result = await table.create(record);
+    console.log('Creating Airtable record with fields:', fields);
+    
+    const result = await base(tableName).create([{ fields }]);
+    
+    console.log('Successfully created Airtable record:', result[0].id);
+    
     return {
-      ...result.fields,
-      originalMessage: rawMessage
+      success: true,
+      recordId: result[0].id
     };
   } catch (error) {
     console.error('Error logging exercise to Airtable:', error);
@@ -75,7 +98,7 @@ async function logExercise(data, userId, rawMessage) {
       stack: error.stack,
       config: {
         baseId: config.airtable.baseId,
-        table: config.airtable.tables.exercise
+        table: config.airtable.tables.exerciseLogs
       }
     });
     
@@ -103,23 +126,26 @@ async function logFood(data, userId, rawMessage) {
     }
     
     const base = getBase();
-    const table = base(config.airtable.tables.food);
+    const tableName = config.airtable.tables.foodLogs;
+    console.log(`Using table: ${tableName}`);
     
-    const record = {
-      fields: {
-        'User ID': userId,
-        'Date': formatDateForAirtable(new Date()),
-        'Food Items': data.foodItems || [],
-        'Calories': data.calories || 0,
-        'Original Message': rawMessage || '',
-        'Processed Data': JSON.stringify(data)
-      }
+    // Create record object with safe defaults
+    const fields = {
+      timestamp: formatDateForAirtable(new Date()),  // Format as YYYY-MM-DD
+      userId: userId,
+      foodItems: data.food_items || '',
+      rawMessage: rawMessage || ''
     };
     
-    const result = await table.create(record);
+    console.log('Creating Airtable record with fields:', fields);
+    
+    const result = await base(tableName).create([{ fields }]);
+    
+    console.log('Successfully created Airtable record:', result[0].id);
+    
     return {
-      ...result.fields,
-      originalMessage: rawMessage
+      success: true,
+      recordId: result[0].id
     };
   } catch (error) {
     console.error('Error logging food to Airtable:', error);
@@ -128,7 +154,7 @@ async function logFood(data, userId, rawMessage) {
       stack: error.stack,
       config: {
         baseId: config.airtable.baseId,
-        table: config.airtable.tables.food
+        table: config.airtable.tables.foodLogs
       }
     });
     
@@ -594,183 +620,11 @@ async function getRecentMessages(userId, limit = 20) {
   }
 }
 
-/**
- * Get messages for a user
- * @param {string} phoneNumber - User's phone number
- * @returns {Promise<Object>} - Messages and status
- */
-async function getMessages(phoneNumber) {
-  try {
-    console.log(`Getting messages for phone number: ${phoneNumber}`);
-    
-    if (!phoneNumber) {
-      return {
-        success: false,
-        error: 'Phone number is required'
-      };
-    }
-    
-    const base = getBase();
-    
-    // Get exercise logs
-    const exerciseRecords = await base(config.airtable.tables.exerciseLogs)
-      .select({
-        filterByFormula: `{userId} = '${phoneNumber}'`
-      })
-      .all();
-    
-    // Get food logs
-    const foodRecords = await base(config.airtable.tables.foodLogs)
-      .select({
-        filterByFormula: `{userId} = '${phoneNumber}'`
-      })
-      .all();
-    
-    // Combine and format messages
-    const messages = [
-      ...exerciseRecords.map(record => ({
-        id: record.id,
-        content: record.get('originalMessage') || '',
-        timestamp: record.get('timestamp'),
-        createdAt: record.get('timestamp'),
-        type: 'incoming',
-        channel: 'whatsapp',
-        processed: true,
-        category: 'exercise',
-        processed_data: {
-          exercise: {
-            duration: parseInt(record.get('duration')) || 0,
-            type: record.get('type') || 'exercise',
-            distance: record.get('distance') || ''
-          }
-        }
-      })),
-      ...foodRecords.map(record => ({
-        id: record.id,
-        content: record.get('originalMessage') || '',
-        timestamp: record.get('timestamp'),
-        createdAt: record.get('timestamp'),
-        type: 'incoming',
-        channel: 'whatsapp',
-        processed: true,
-        category: 'food',
-        processed_data: {
-          food: {
-            description: record.get('foodItems') || ''
-          }
-        }
-      }))
-    ];
-    
-    // Sort by timestamp descending
-    messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    return {
-      success: true,
-      data: messages
-    };
-  } catch (error) {
-    console.error('Error getting messages:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-/**
- * Get exercise logs for a user
- * @param {string} phoneNumber - User's phone number
- * @param {number} days - Number of days to look back
- * @returns {Promise<Array>} - Array of exercise logs
- */
-async function getExerciseLogs(phoneNumber, days = 7) {
-  try {
-    const base = getBase();
-    const table = base(config.airtable.tables.exerciseLogs);
-    
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    console.log(`Getting exercise logs for ${phoneNumber} from ${startDate} to ${endDate}`);
-    
-    const records = await table.select({
-      filterByFormula: `AND(
-        {User ID} = '${phoneNumber}',
-        {timestamp} >= '${formatDateForAirtable(startDate)}',
-        {timestamp} <= '${formatDateForAirtable(endDate)}'
-      )`,
-      sort: [{ field: 'timestamp', direction: 'desc' }]
-    }).all();
-    
-    console.log(`Found ${records.length} exercise records`);
-    
-    return records.map(record => ({
-      id: record.id,
-      date: record.fields.timestamp,
-      type: record.fields.Type,
-      duration: record.fields.Duration,
-      distance: record.fields.Distance,
-      originalMessage: record.fields['Original Message']
-    }));
-  } catch (error) {
-    console.error('Error getting exercise logs:', error);
-    throw error;
-  }
-}
-
-/**
- * Get food logs for a user
- * @param {string} phoneNumber - User's phone number
- * @param {number} days - Number of days to look back
- * @returns {Promise<Array>} - Array of food logs
- */
-async function getFoodLogs(phoneNumber, days = 7) {
-  try {
-    const base = getBase();
-    const table = base(config.airtable.tables.foodLogs);
-    
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    console.log(`Getting food logs for ${phoneNumber} from ${startDate} to ${endDate}`);
-    
-    const records = await table.select({
-      filterByFormula: `AND(
-        {User ID} = '${phoneNumber}',
-        {timestamp} >= '${formatDateForAirtable(startDate)}',
-        {timestamp} <= '${formatDateForAirtable(endDate)}'
-      )`,
-      sort: [{ field: 'timestamp', direction: 'desc' }]
-    }).all();
-    
-    console.log(`Found ${records.length} food records`);
-    
-    return records.map(record => ({
-      id: record.id,
-      date: record.fields.timestamp,
-      foodItems: record.fields['Food Items'],
-      calories: record.fields.Calories,
-      originalMessage: record.fields['Original Message']
-    }));
-  } catch (error) {
-    console.error('Error getting food logs:', error);
-    throw error;
-  }
-}
-
 // Add this function to the module exports
 module.exports = {
   logExercise,
   logFood,
   getUserStatus,
   ensureUserExists,
-  getRecentMessages,
-  getExerciseLogs,
-  getFoodLogs,
-  getMessages
+  getRecentMessages
 };
