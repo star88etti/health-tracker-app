@@ -595,94 +595,21 @@ async function getRecentMessages(userId, limit = 20) {
 }
 
 /**
- * Get exercise logs for a user
- * @param {string} phoneNumber - User's phone number
- * @param {number} days - Number of days to look back
- * @returns {Promise<Array>} - Array of exercise logs
- */
-async function getExerciseLogs(phoneNumber, days = 7) {
-  try {
-    const base = getBase();
-    const table = base(config.airtable.tables.exerciseLogs);
-    
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    const records = await table.select({
-      filterByFormula: `AND(
-        {userId} = '${phoneNumber}',
-        {timestamp} >= '${formatDateForAirtable(startDate)}',
-        {timestamp} <= '${formatDateForAirtable(endDate)}'
-      )`,
-      sort: [{ field: 'timestamp', direction: 'desc' }]
-    }).all();
-    
-    return records.map(record => ({
-      id: record.id,
-      date: record.fields.timestamp,
-      type: record.fields.type,
-      duration: record.fields.duration,
-      distance: record.fields.distance,
-      originalMessage: record.fields.rawMessage
-    }));
-  } catch (error) {
-    console.error('Error getting exercise logs:', error);
-    throw error;
-  }
-}
-
-/**
- * Get food logs for a user
- * @param {string} phoneNumber - User's phone number
- * @param {number} days - Number of days to look back
- * @returns {Promise<Array>} - Array of food logs
- */
-async function getFoodLogs(phoneNumber, days = 7) {
-  try {
-    const base = getBase();
-    const table = base(config.airtable.tables.foodLogs);
-    
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    const records = await table.select({
-      filterByFormula: `AND(
-        {userId} = '${phoneNumber}',
-        {timestamp} >= '${formatDateForAirtable(startDate)}',
-        {timestamp} <= '${formatDateForAirtable(endDate)}'
-      )`,
-      sort: [{ field: 'timestamp', direction: 'desc' }]
-    }).all();
-    
-    return records.map(record => ({
-      id: record.id,
-      date: record.fields.timestamp,
-      foodItems: record.fields.foodItems,
-      calories: record.fields.calories,
-      originalMessage: record.fields.rawMessage
-    }));
-  } catch (error) {
-    console.error('Error getting food logs:', error);
-    throw error;
-  }
-}
-
-/**
  * Get messages for a user
  * @param {string} phoneNumber - User's phone number
  * @returns {Promise<Array>} - Array of messages
  */
 async function getMessages(phoneNumber) {
   try {
+    console.log(`Getting messages for phone number: ${phoneNumber}`);
+    
     // Get both exercise and food logs
     const [exerciseLogs, foodLogs] = await Promise.all([
       getExerciseLogs(phoneNumber, 30), // Last 30 days
       getFoodLogs(phoneNumber, 30)
     ]);
+    
+    console.log(`Found ${exerciseLogs.length} exercise logs and ${foodLogs.length} food logs`);
     
     // Convert logs to message format
     const messages = [];
@@ -729,9 +656,95 @@ async function getMessages(phoneNumber) {
     // Sort messages by timestamp (newest first)
     messages.sort((a, b) => b.timestamp - a.timestamp);
     
+    console.log(`Returning ${messages.length} total messages`);
     return messages;
   } catch (error) {
     console.error('Error getting messages:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get exercise logs for a user
+ * @param {string} phoneNumber - User's phone number
+ * @param {number} days - Number of days to look back
+ * @returns {Promise<Array>} - Array of exercise logs
+ */
+async function getExerciseLogs(phoneNumber, days = 7) {
+  try {
+    const base = getBase();
+    const table = base(config.airtable.tables.exerciseLogs);
+    
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    console.log(`Getting exercise logs for ${phoneNumber} from ${startDate} to ${endDate}`);
+    
+    const records = await table.select({
+      filterByFormula: `AND(
+        {userId} = '${phoneNumber}',
+        {timestamp} >= '${formatDateForAirtable(startDate)}',
+        {timestamp} <= '${formatDateForAirtable(endDate)}'
+      )`,
+      sort: [{ field: 'timestamp', direction: 'desc' }]
+    }).all();
+    
+    console.log(`Found ${records.length} exercise records`);
+    
+    return records.map(record => ({
+      id: record.id,
+      date: record.fields.timestamp,
+      type: record.fields.type,
+      duration: record.fields.duration,
+      distance: record.fields.distance,
+      originalMessage: record.fields.rawMessage
+    }));
+  } catch (error) {
+    console.error('Error getting exercise logs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get food logs for a user
+ * @param {string} phoneNumber - User's phone number
+ * @param {number} days - Number of days to look back
+ * @returns {Promise<Array>} - Array of food logs
+ */
+async function getFoodLogs(phoneNumber, days = 7) {
+  try {
+    const base = getBase();
+    const table = base(config.airtable.tables.foodLogs);
+    
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    console.log(`Getting food logs for ${phoneNumber} from ${startDate} to ${endDate}`);
+    
+    const records = await table.select({
+      filterByFormula: `AND(
+        {userId} = '${phoneNumber}',
+        {timestamp} >= '${formatDateForAirtable(startDate)}',
+        {timestamp} <= '${formatDateForAirtable(endDate)}'
+      )`,
+      sort: [{ field: 'timestamp', direction: 'desc' }]
+    }).all();
+    
+    console.log(`Found ${records.length} food records`);
+    
+    return records.map(record => ({
+      id: record.id,
+      date: record.fields.timestamp,
+      foodItems: record.fields.foodItems,
+      calories: record.fields.calories,
+      originalMessage: record.fields.rawMessage
+    }));
+  } catch (error) {
+    console.error('Error getting food logs:', error);
     throw error;
   }
 }
