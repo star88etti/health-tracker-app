@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const webhookRoutes = require('./routes/webhook');
 const apiRoutes = require('./routes/api');
+const messagesRoutes = require('./routes/messages');
 const cors = require('cors'); // You'll need to install this
 
 // Initialize Express app
@@ -23,6 +24,7 @@ app.use(cors({
 // Routes
 app.use('/webhook', webhookRoutes);
 app.use('/api', apiRoutes);
+app.use('/messages', messagesRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {

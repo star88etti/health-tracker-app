@@ -597,70 +597,68 @@ async function getRecentMessages(userId, limit = 20) {
 /**
  * Get messages for a user
  * @param {string} phoneNumber - User's phone number
- * @returns {Promise<Array>} - Array of messages
+ * @returns {Promise<Object>} - Messages and status
  */
 async function getMessages(phoneNumber) {
   try {
     console.log(`Getting messages for phone number: ${phoneNumber}`);
     
-    // Get both exercise and food logs
-    const [exerciseLogs, foodLogs] = await Promise.all([
-      getExerciseLogs(phoneNumber, 30), // Last 30 days
-      getFoodLogs(phoneNumber, 30)
-    ]);
+    if (!phoneNumber) {
+      return {
+        success: false,
+        error: 'Phone number is required'
+      };
+    }
     
-    console.log(`Found ${exerciseLogs.length} exercise logs and ${foodLogs.length} food logs`);
+    const base = getBase();
     
-    // Convert logs to message format
-    const messages = [];
+    // Get exercise logs
+    const exerciseRecords = await base(config.airtable.tables.exerciseLogs)
+      .select({
+        filterByFormula: `{userId} = '${phoneNumber}'`
+      })
+      .all();
     
-    // Add exercise logs as messages
-    exerciseLogs.forEach(log => {
-      messages.push({
-        id: `exercise-${log.id}`,
-        content: log.originalMessage || `Exercise: ${log.type} for ${log.duration} minutes`,
-        timestamp: new Date(log.date),
-        type: 'incoming',
-        channel: 'whatsapp',
+    // Get food logs
+    const foodRecords = await base(config.airtable.tables.foodLogs)
+      .select({
+        filterByFormula: `{userId} = '${phoneNumber}'`
+      })
+      .all();
+    
+    // Combine and format messages
+    const messages = [
+      ...exerciseRecords.map(record => ({
+        id: record.id,
+        timestamp: record.get('timestamp'),
+        rawMessage: record.get('originalMessage'),
         category: 'exercise',
-        processed: true,
-        processed_data: {
-          exercise: {
-            duration: log.duration,
-            type: log.type,
-            distance: log.distance
-          }
-        }
-      });
-    });
-    
-    // Add food logs as messages
-    foodLogs.forEach(log => {
-      messages.push({
-        id: `food-${log.id}`,
-        content: log.originalMessage || `Food: ${log.foodItems}`,
-        timestamp: new Date(log.date),
-        type: 'incoming',
-        channel: 'whatsapp',
+        processedData: JSON.parse(record.get('processedData') || '{}'),
+        confidence: record.get('confidence') || 75
+      })),
+      ...foodRecords.map(record => ({
+        id: record.id,
+        timestamp: record.get('timestamp'),
+        rawMessage: record.get('originalMessage'),
         category: 'food',
-        processed: true,
-        processed_data: {
-          food: {
-            items: log.foodItems,
-            calories: log.calories
-          }
-        }
-      });
-    });
+        processedData: JSON.parse(record.get('processedData') || '{}'),
+        confidence: record.get('confidence') || 75
+      }))
+    ];
     
-    // Sort messages by timestamp (newest first)
-    messages.sort((a, b) => b.timestamp - a.timestamp);
+    // Sort by timestamp descending
+    messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
-    console.log(`Returning ${messages.length} total messages`);
-    return messages;
+    return {
+      success: true,
+      data: messages
+    };
   } catch (error) {
     console.error('Error getting messages:', error);
-    throw error;
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
