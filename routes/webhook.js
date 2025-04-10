@@ -49,6 +49,7 @@ router.post('/message', async (req, res) => {
         // Note: This is a placeholder - you'll need to implement actual speech-to-text
         // For now, we'll use a mock response
         processedMessage = "I ran 5 miles today"; // This would be the actual transcribed text
+        originalMessage = processedMessage; // For voice messages, the processed message is the original
         
         console.log('Voice message processed:', processedMessage);
       } catch (error) {
