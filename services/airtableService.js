@@ -630,19 +630,33 @@ async function getMessages(phoneNumber) {
     const messages = [
       ...exerciseRecords.map(record => ({
         id: record.id,
+        content: record.get('originalMessage'),
         timestamp: record.get('timestamp'),
-        rawMessage: record.get('originalMessage'),
+        type: 'incoming',
+        channel: 'whatsapp',
+        processed: true,
         category: 'exercise',
-        processedData: JSON.parse(record.get('processedData') || '{}'),
-        confidence: record.get('confidence') || 75
+        processed_data: {
+          exercise: {
+            duration: record.get('duration') || 0,
+            type: record.get('type') || 'exercise',
+            distance: record.get('distance') || ''
+          }
+        }
       })),
       ...foodRecords.map(record => ({
         id: record.id,
+        content: record.get('originalMessage'),
         timestamp: record.get('timestamp'),
-        rawMessage: record.get('originalMessage'),
+        type: 'incoming',
+        channel: 'whatsapp',
+        processed: true,
         category: 'food',
-        processedData: JSON.parse(record.get('processedData') || '{}'),
-        confidence: record.get('confidence') || 75
+        processed_data: {
+          food: {
+            description: record.get('foodItems') || ''
+          }
+        }
       }))
     ];
     
