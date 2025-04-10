@@ -630,15 +630,16 @@ async function getMessages(phoneNumber) {
     const messages = [
       ...exerciseRecords.map(record => ({
         id: record.id,
-        content: record.get('originalMessage'),
+        content: record.get('originalMessage') || '',
         timestamp: record.get('timestamp'),
+        createdAt: record.get('timestamp'),
         type: 'incoming',
         channel: 'whatsapp',
         processed: true,
         category: 'exercise',
         processed_data: {
           exercise: {
-            duration: record.get('duration') || 0,
+            duration: parseInt(record.get('duration')) || 0,
             type: record.get('type') || 'exercise',
             distance: record.get('distance') || ''
           }
@@ -646,8 +647,9 @@ async function getMessages(phoneNumber) {
       })),
       ...foodRecords.map(record => ({
         id: record.id,
-        content: record.get('originalMessage'),
+        content: record.get('originalMessage') || '',
         timestamp: record.get('timestamp'),
+        createdAt: record.get('timestamp'),
         type: 'incoming',
         channel: 'whatsapp',
         processed: true,
