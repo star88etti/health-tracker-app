@@ -575,8 +575,8 @@ async function getRecentMessages(userId, limit = 20) {
     // Process exercise logs into messages
     const exerciseMessages = exerciseRecords.map(record => ({
       id: record.id,
-      content: record.get('content'),
-      originalContent: record.get('originalContent') || record.get('rawMessage'),
+      content: record.get('rawMessage'),
+      originalContent: record.get('rawMessage'),
       timestamp: new Date(record.get('timestamp')),
       type: 'incoming',
       category: 'exercise',
@@ -594,8 +594,8 @@ async function getRecentMessages(userId, limit = 20) {
     // Process food logs into messages
     const foodMessages = foodRecords.map(record => ({
       id: record.id,
-      content: record.get('content'),
-      originalContent: record.get('originalContent') || record.get('rawMessage'),
+      content: record.get('rawMessage'),
+      originalContent: record.get('rawMessage'),
       timestamp: new Date(record.get('timestamp')),
       type: 'incoming',
       category: 'food',
