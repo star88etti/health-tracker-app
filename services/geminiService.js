@@ -4,7 +4,8 @@ const config = require('../config');
 // Initialize Gemini API with the latest configuration
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey, {
   headers: {
-    'Referer': config.apiBaseUrl
+    'Origin': `https://${config.apiBaseUrl}`,
+    'Referer': `https://${config.apiBaseUrl}/`
   }
 });
 
