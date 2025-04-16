@@ -2,7 +2,11 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const config = require('../config');
 
 // Initialize Gemini API with the latest configuration
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+const genAI = new GoogleGenerativeAI(config.gemini.apiKey, {
+  headers: {
+    'Referer': config.apiBaseUrl
+  }
+});
 
 const model = genAI.getGenerativeModel({ 
   model: config.gemini.model,
