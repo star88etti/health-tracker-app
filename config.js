@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const config = {
 
-  apiBaseUrl: 'https://health-tracker-new-app-7de8aa984308.herokuapp.com/',
+  apiBaseUrl: 'health-tracker-new-app-7de8aa984308.herokuapp.com',
   // Twilio settings
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
