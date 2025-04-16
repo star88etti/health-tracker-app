@@ -99,17 +99,17 @@ router.post('/message', async (req, res) => {
     const classification = await geminiService.classifyMessage(processedMessage);
     console.log('Message classification:', classification);
     
-    // Store the message in Airtable with both processed and original content
-    const messageRecord = await airtableService.logMessage({
-      userId,
-      content: processedMessage,
-      originalContent: originalMessage,
-      type: 'incoming',
-      channel: 'whatsapp',
-      processed: true,
-      category: classification.type,
-      processed_data: classification
-    });
+    // Skip message logging for now since we don't have the Messages table set up
+    // const messageRecord = await airtableService.logMessage({
+    //   userId,
+    //   content: processedMessage,
+    //   originalContent: originalMessage,
+    //   type: 'incoming',
+    //   channel: 'whatsapp',
+    //   processed: true,
+    //   category: classification.type,
+    //   processed_data: classification
+    // });
     
     // Handle the message based on its type
     let responseMessage = '';

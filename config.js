@@ -28,8 +28,7 @@ const config = {
     tables: {
       users: process.env.AIRTABLE_USERS_TABLE_ID || 'Users',
       exerciseLogs: process.env.AIRTABLE_EXERCISE_LOGS_TABLE_ID || 'Exercise Logs',
-      foodLogs: process.env.AIRTABLE_FOOD_LOGS_TABLE_ID || 'Food Logs',
-      messages: process.env.AIRTABLE_MESSAGES_TABLE_ID || 'Messages'
+      foodLogs: process.env.AIRTABLE_FOOD_LOGS_TABLE_ID || 'Food Logs'
     }
   }
 };
