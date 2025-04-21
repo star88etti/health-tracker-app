@@ -14,7 +14,7 @@ const config = {
   // Gemini settings
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: 'gemini-1.5-pro-002',
+    model: 'gemini-2.0-flash-lite',
     maxOutputTokens: 2048,
     temperature: 0.1,
     topP: 1,
