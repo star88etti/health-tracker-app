@@ -7,10 +7,8 @@ const { promisify } = require('util');
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 
-// Initialize Speech-to-Text client
-const speechClient = new SpeechClient({
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
-});
+// Initialize Speech-to-Text client using Application Default Credentials
+const speechClient = new SpeechClient();
 
 /**
  * Convert audio buffer to WAV format suitable for Google Speech-to-Text
@@ -23,8 +21,13 @@ async function convertAudioToWav(audioBuffer, inputFormat) {
   const tempOutputPath = path.join(os.tmpdir(), `output-${Date.now()}.wav`);
   
   try {
+    console.log('Converting audio file...');
+    console.log('Input format:', inputFormat);
+    console.log('Input buffer size:', audioBuffer.length);
+    
     // Write the input buffer to a temporary file
     await writeFile(tempInputPath, audioBuffer);
+    console.log('Temporary input file created:', tempInputPath);
     
     // Convert to WAV using ffmpeg
     await new Promise((resolve, reject) => {
@@ -36,15 +39,32 @@ async function convertAudioToWav(audioBuffer, inputFormat) {
           '-ar 16000'
         ])
         .save(tempOutputPath)
-        .on('end', resolve)
-        .on('error', reject);
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          console.log('FFmpeg progress:', progress);
+        })
+        .on('end', () => {
+          console.log('FFmpeg conversion complete');
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reject(err);
+        });
     });
     
+    console.log('Converted file size:', fs.statSync(tempOutputPath).size);
     return tempOutputPath;
+  } catch (error) {
+    console.error('Error in convertAudioToWav:', error);
+    throw error;
   } finally {
     // Clean up the input file
     try {
       await unlink(tempInputPath);
+      console.log('Cleaned up input file');
     } catch (error) {
       console.error('Error cleaning up input file:', error);
     }
@@ -62,11 +82,15 @@ async function transcribeAudio(audioBuffer, inputFormat, languageCode = 'en-US')
   let wavFilePath;
   
   try {
+    console.log('\nStarting transcription process...');
+    console.log('Language code:', languageCode);
+    
     // Convert audio to WAV format
     wavFilePath = await convertAudioToWav(audioBuffer, inputFormat);
     
     // Read the converted WAV file
     const audioBytes = fs.readFileSync(wavFilePath).toString('base64');
+    console.log('WAV file converted to base64, length:', audioBytes.length);
     
     // Configure the recognition request
     const audio = {
@@ -76,8 +100,8 @@ async function transcribeAudio(audioBuffer, inputFormat, languageCode = 'en-US')
       encoding: 'LINEAR16',
       sampleRateHertz: 16000,
       languageCode: languageCode,
-      model: 'default', // Use 'phone_call' for audio from phone calls
-      useEnhanced: true, // Use enhanced model
+      model: 'default',
+      useEnhanced: true,
       metadata: {
         interactionType: 'VOICE_MESSAGE',
         microphoneDistance: 'NEARFIELD',
@@ -85,13 +109,18 @@ async function transcribeAudio(audioBuffer, inputFormat, languageCode = 'en-US')
       }
     };
     
+    console.log('Sending request to Google Speech-to-Text API...');
+    console.log('Recognition config:', JSON.stringify(config, null, 2));
+    
     // Perform the transcription
     const [response] = await speechClient.recognize({ audio, config });
+    console.log('API Response:', JSON.stringify(response, null, 2));
+    
     const transcription = response.results
       .map(result => result.alternatives[0].transcript)
       .join('\n');
     
-    console.log('Transcription successful:', transcription);
+    console.log('Transcription successful');
     return transcription;
   } catch (error) {
     console.error('Error in transcribeAudio:', error);
@@ -101,6 +130,7 @@ async function transcribeAudio(audioBuffer, inputFormat, languageCode = 'en-US')
     if (wavFilePath) {
       try {
         await unlink(wavFilePath);
+        console.log('Cleaned up WAV file');
       } catch (error) {
         console.error('Error cleaning up WAV file:', error);
       }
