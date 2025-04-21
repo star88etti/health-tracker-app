@@ -7,8 +7,19 @@ const { promisify } = require('util');
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 
-// Initialize Speech-to-Text client using Application Default Credentials
-const speechClient = new SpeechClient();
+// Initialize Speech-to-Text client
+let speechClient;
+
+// If credentials are provided as JSON string in environment variable
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+  const credentialsPath = path.join(os.tmpdir(), 'google-credentials.json');
+  fs.writeFileSync(credentialsPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+  speechClient = new SpeechClient({ keyFilename: credentialsPath });
+} else {
+  // Fall back to Application Default Credentials
+  speechClient = new SpeechClient();
+}
 
 /**
  * Convert audio buffer to WAV format suitable for Google Speech-to-Text
