@@ -4,6 +4,7 @@ const router = express.Router();
 const geminiService = require('../services/geminiService');
 const airtableService = require('../services/airtableService');
 const twilioService = require('../services/twilioService');
+const speechService = require('../services/speechService');
 const axios = require('axios');
 
 /**
@@ -31,7 +32,7 @@ router.post('/message', async (req, res) => {
     const userId = from.replace('whatsapp:', '');
     
     let processedMessage = messageBody;
-    const originalMessage = messageBody; // Store the original message
+    const originalMessage = messageBody;
     
     // Handle voice messages
     if (mediaUrl && req.body.MediaContentType0 === 'audio/ogg') {
@@ -45,16 +46,19 @@ router.post('/message', async (req, res) => {
           }
         });
         
-        // Convert voice to text using Gemini's speech-to-text
-        // Note: This is a placeholder - you'll need to implement actual speech-to-text
-        // For now, we'll use a mock response
-        processedMessage = "I ran 5 miles today"; // This would be the actual transcribed text
-        originalMessage = processedMessage; // For voice messages, the processed message is the original
+        // Convert voice to text using Google Speech-to-Text
+        processedMessage = await speechService.transcribeAudio(
+          response.data,
+          'ogg',
+          'en-US'
+        );
         
-        console.log('Voice message processed:', processedMessage);
+        console.log('Voice message transcribed:', processedMessage);
       } catch (error) {
         console.error('Error processing voice message:', error);
-        const twimlResponse = twilioService.generateTwimlResponse("Sorry, I couldn't process your voice message. Please try sending a text message instead.");
+        const twimlResponse = twilioService.generateTwimlResponse(
+          "Sorry, I couldn't process your voice message. Please try sending a text message instead."
+        );
         return res.type('text/xml').send(twimlResponse);
       }
     }
