@@ -10,15 +10,20 @@ const unlink = promisify(fs.unlink);
 // Initialize Speech-to-Text client
 let speechClient;
 
-// If credentials are provided as JSON string in environment variable
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-  const credentialsPath = path.join(os.tmpdir(), 'google-credentials.json');
-  fs.writeFileSync(credentialsPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
-  speechClient = new SpeechClient({ keyFilename: credentialsPath });
-} else {
-  // Fall back to Application Default Credentials
-  speechClient = new SpeechClient();
+try {
+  // Create credentials object from environment variable
+  const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || '{}');
+  
+  // Initialize the client with credentials and project ID
+  speechClient = new SpeechClient({
+    credentials,
+    projectId: process.env.GOOGLE_CLOUD_PROJECT
+  });
+  
+  console.log('Speech client initialized with project:', process.env.GOOGLE_CLOUD_PROJECT);
+} catch (error) {
+  console.error('Error initializing speech client:', error);
+  throw error;
 }
 
 /**
